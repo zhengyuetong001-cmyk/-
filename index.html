@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>训练记录系统</title>
+<style>
+body {
+  font-family: Arial;
+  background: #f1f5f9;
+  padding: 10px;
+  max-width: 420px;
+  margin: auto;
+}
+h2 { margin: 10px 0; }
+.box {
+  background: white;
+  padding: 12px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+}
+button {
+  margin: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #e2e8f0;
+  cursor: pointer;
+}
+input {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  width: 60%;
+}
+.active { background: #3b82f6; color: white; }
+.success { background: #22c55e; color: white; }
+.fail { background: #ef4444; color: white; }
+.record {
+  background: #f8fafc;
+  padding: 8px;
+  margin-top: 6px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🏀 转换进攻记录</h2>
+
+<div class="box">
+<b>添加队员：</b><br>
+<input id="playerInput" placeholder="输入队员姓名或号码">
+<button onclick="addPlayer()">添加队员</button>
+<div id="playerList"></div>
+</div>
+
+<div class="box">
+<b>阶段：</b><br>
+<button onclick="setPhase(this,'快攻')">快攻</button>
+<button onclick="setPhase(this,'急攻')">急攻</button>
+<button onclick="setPhase(this,'衔接')">衔接</button>
+</div>
+
+<div class="box">
+<b>推进人：</b><br>
+<div id="handlerList">请先添加队员</div>
+</div>
+
+<div class="box">
+<b>结束方式：</b><br>
+<button onclick="setFinish(this,'上篮')">上篮</button>
+<button onclick="setFinish(this,'直接3分')">直接3分</button>
+<button onclick="setFinish(this,'跳投')">跳投</button>
+<button onclick="setFinish(this,'挡拆终结')">挡拆终结</button>
+</div>
+
+<div class="box">
+<b>结果：</b><br>
+<button class="success" onclick="setResult('成功')">成功</button>
+<button class="fail" onclick="setResult('失败')">失败</button>
+</div>
+
+<div class="box">
+<button onclick="addRecord()">🚀 记录</button>
+<button onclick="resetAll()">清空选择</button>
+<button onclick="clearSavedData()">清空全部数据</button>
+<button onclick="exportCSV()">导出CSV</button>
+</div>
+
+<div class="box">
+<b>记录：</b>
+<div id="list"></div>
+</div>
+
+<script>
+let phase = "";
+let handler = "";
+let finish = "";
+let result = "";
+
+// 关键：从浏览器本地存储读取，刷新/关闭网页后仍然保留
+let players = JSON.parse(localStorage.getItem("players") || "[]");
+let records = JSON.parse(localStorage.getItem("records") || "[]");
+
+function saveData(){
+  localStorage.setItem("players", JSON.stringify(players));
+  localStorage.setItem("records", JSON.stringify(records));
+}
+
+function renderRecords(){
+  let html = "";
+  records.slice(0,50).forEach(r=>{
+    html += "<div class='record'>" + r + "</div>";
+  });
+  document.getElementById("list").innerHTML = html || "暂无记录";
+}
+
+function clearActive(group){
+  group.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+}
+
+function addPlayer(){
+  let input = document.getElementById("playerInput");
+  let name = input.value.trim();
+
+  if(!name){
+    alert("请输入队员名称");
+    return;
+  }
+
+  if(players.includes(name)){
+    alert("这个队员已经添加过了");
+    return;
+  }
+
+  players.push(name);
+  input.value = "";
+  saveData();
+  renderPlayers();
+}
+
+function renderPlayers(){
+  let playerList = document.getElementById("playerList");
+  let handlerList = document.getElementById("handlerList");
+
+  playerList.innerHTML = "";
+  handlerList.innerHTML = "";
+
+  players.forEach(name=>{
+    playerList.innerHTML += "<button>" + name + "</button>";
+    handlerList.innerHTML += "<button onclick=\"setHandler(this,'" + name + "')\">" + name + "</button>";
+  });
+}
+
+function setPhase(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  phase = val;
+}
+
+function setHandler(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  handler = val;
+}
+
+function setFinish(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  finish = val;
+}
+
+function setResult(val){
+  result = val;
+}
+
+function addRecord(){
+  if(!phase || !result){
+    alert("请选择阶段和结果");
+    return;
+  }
+
+  let time = new Date().toLocaleTimeString();
+  let text = time + " | " + phase + " | 推进人：" + (handler || "未选") + " | 结束：" + (finish || "未选") + " | " + result;
+
+  records.unshift(text);
+  saveData();
+  renderRecords();
+  resetAll();
+}
+
+function resetAll(){
+  phase = "";
+  handler = "";
+  finish = "";
+  result = "";
+  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+}
+
+function clearSavedData(){
+  if(confirm("确定要清空所有队员和记录吗？")){
+    players = [];
+    records = [];
+    saveData();
+    renderPlayers();
+    renderRecords();
+    resetAll();
+  }
+}
+
+function exportCSV(){
+  if(records.length === 0){
+    alert("暂无记录可导出");
+    return;
+  }
+  let csv = "训练记录\n" + records.map(r => '"' + r.replaceAll('"','""') + '"').join("\n");
+  let blob = new Blob(["\ufeff" + csv], {type: "text/csv;charset=utf-8;"});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "训练记录.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 页面打开时自动显示已保存的队员和记录
+window.onload = function(){
+  renderPlayers();
+  renderRecords();
+};
+
+</script>
+
+</body>
+</html>
