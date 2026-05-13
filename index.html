@@ -137,7 +137,7 @@ input {
     <button onclick="setQuarter(this,'第四节')">第四节</button>
   </div>
 
-  <span class="label">四阶段快捷录入</span>
+  <span class="label">四阶段录入键（点击即录入）</span>
   <div class="quick-pairs">
     <div class="quick-pair">
       <button class="quick" onclick="addQuickRecord('快攻','成功')">快攻成功</button>
@@ -240,6 +240,14 @@ input {
     <input id="efficientInput" placeholder="高效阶段时间，如 06:10-08:00">
   </div>
   <button class="marker" onclick="addVideoMarker()">只按节次记录标记</button>
+  <div class="grid">
+    <button class="danger" onclick="showReboundPicker()">丢篮板</button>
+    <button class="marker" onclick="addSimpleMarker('防守愣神')">防守愣神</button>
+  </div>
+  <div id="reboundPicker" style="display:none;">
+    <span class="label">选择丢篮板球员</span>
+    <div class="grid players" id="reboundList">请先添加队员</div>
+  </div>
 </div>
 
 <div class="box">
@@ -257,6 +265,11 @@ input {
 <details open>
   <summary>最新记录</summary>
   <div id="list"></div>
+</details>
+
+<details open>
+  <summary>按节次显示</summary>
+  <div id="quarterLists"></div>
 </details>
 
 <details>
@@ -340,9 +353,11 @@ function getRecordText(r){
 
   if(r.type === "marker"){
     let parts = [];
+    if(r.label) parts.push(escapeHtml(r.label));
+    if(r.player) parts.push("球员 " + escapeHtml(r.player));
     if(r.lostRunTime) parts.push("失分潮 " + escapeHtml(r.lostRunTime));
     if(r.efficientTime) parts.push("高效阶段 " + escapeHtml(r.efficientTime));
-    return "<b>[" + escapeHtml(r.quarter) + " " + shortTime(r.time) + "] 录像标记</b> | " + parts.join(" | ");
+    return "<b>[" + escapeHtml(r.quarter) + " " + shortTime(r.time) + "] 标记</b> | " + parts.join(" | ");
   }
 
   let points = getPoints(r);
@@ -362,8 +377,28 @@ function renderRecords(){
     html += "<div class='record'>" + getRecordText(r) + "</div>";
   });
   document.getElementById("list").innerHTML = html || "暂无记录";
+  renderQuarterLists();
   renderCoachDashboard();
   renderStats();
+}
+
+function renderQuarterLists(){
+  let quarters = ["第一节", "第二节", "第三节", "第四节"];
+  let html = "";
+
+  quarters.forEach(q=>{
+    let qRecords = records.filter(r=>typeof r !== "string" && r.quarter === q);
+    html += "<div class='stat'><b>" + q + "</b>：共 " + qRecords.length + " 条</div>";
+    if(qRecords.length === 0){
+      html += "<div class='record'>暂无记录</div>";
+    }else{
+      qRecords.slice(0,30).forEach(r=>{
+        html += "<div class='record'>" + getRecordText(r) + "</div>";
+      });
+    }
+  });
+
+  document.getElementById("quarterLists").innerHTML = html;
 }
 
 function addPlayer(){
@@ -389,19 +424,23 @@ function addPlayer(){
 function renderPlayers(){
   let assistList = document.getElementById("assistList");
   let finisherList = document.getElementById("finisherList");
+  let reboundList = document.getElementById("reboundList");
 
   assistList.innerHTML = "";
   finisherList.innerHTML = "";
+  reboundList.innerHTML = "";
 
   players.forEach(name=>{
     let safeName = escapeHtml(name);
     assistList.innerHTML += "<button onclick=\"setAssistPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
     finisherList.innerHTML += "<button onclick=\"setFinisherPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
+    reboundList.innerHTML += "<button onclick=\"addReboundMarker('" + safeName + "')\">" + safeName + "</button>";
   });
 
   if(players.length === 0){
     assistList.innerHTML = "请先添加队员";
     finisherList.innerHTML = "请先添加队员";
+    reboundList.innerHTML = "请先添加队员";
   }
 }
 
@@ -567,6 +606,50 @@ function addVideoMarker(){
   document.getElementById("efficientInput").value = "";
 }
 
+function addSimpleMarker(label){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  records.unshift({
+    type: "marker",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    label
+  });
+
+  saveData();
+  renderRecords();
+}
+
+function showReboundPicker(){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+  document.getElementById("reboundPicker").style.display = "block";
+}
+
+function addReboundMarker(player){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  records.unshift({
+    type: "marker",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    label: "丢篮板",
+    player
+  });
+
+  saveData();
+  renderRecords();
+  document.getElementById("reboundPicker").style.display = "none";
+}
+
 function attackRecords(){
   return records.filter(r=>typeof r !== "string" && r.type !== "marker");
 }
@@ -695,6 +778,7 @@ function resetAttackOnly(){
   });
   document.getElementById("tacticBox").style.display = "none";
   document.getElementById("quickTacticPicker").style.display = "none";
+  document.getElementById("reboundPicker").style.display = "none";
   document.getElementById("tacticInput").value = "";
 }
 
@@ -721,14 +805,14 @@ function exportCSV(){
     alert("暂无记录可导出");
     return;
   }
-  let rows = [["类型","时间","节次","阶段","战术","助攻人","终结人","终结方式","终结区域","失分潮时间","高效阶段时间","结果","得分"]];
+  let rows = [["类型","时间","节次","阶段","战术","助攻人","终结人","终结方式","终结区域","标记内容","标记球员","失分潮时间","高效阶段时间","结果","得分"]];
   records.forEach(r=>{
     if(typeof r === "string"){
-      rows.push(["旧记录",r,"","","","","","","","","","",""]);
+      rows.push(["旧记录",r,"","","","","","","","","","","","",""]);
     }else if(r.type === "marker"){
-      rows.push(["录像标记",r.time,r.quarter,"","","","","","",r.lostRunTime,r.efficientTime,"",""]);
+      rows.push(["标记",r.time,r.quarter,"","","","","","",r.label,r.player,r.lostRunTime,r.efficientTime,"",""]);
     }else{
-      rows.push(["进攻回合",r.time,r.quarter,r.phase,r.tactic,r.assistPlayer,r.finisherPlayer,r.finish,r.area,"","",r.result,getPoints(r)]);
+      rows.push(["进攻回合",r.time,r.quarter,r.phase,r.tactic,r.assistPlayer,r.finisherPlayer,r.finish,r.area,"","","","",r.result,getPoints(r)]);
     }
   });
   let csv = rows.map(row=>row.map(cell=>'"' + String(cell || "").replaceAll('"','""') + '"').join(",")).join("\n");
