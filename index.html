@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>比赛进攻记录</title>
+<style>
+body {
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  background: #f1f5f9;
+  padding: 8px;
+  max-width: 760px;
+  margin: auto;
+}
+h2 { margin: 6px 0 8px; font-size: 22px; }
+.box, details {
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+summary { font-weight: bold; cursor: pointer; }
+.label { display: block; font-weight: bold; margin: 8px 0 4px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.grid.players {
+  grid-template-columns: repeat(3, 1fr);
+  max-height: 128px;
+  overflow-y: auto;
+}
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+button {
+  min-height: 40px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: none;
+  background: #e2e8f0;
+  cursor: pointer;
+  font-size: 15px;
+}
+input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  font-size: 15px;
+  margin: 4px 0;
+}
+.active { background: #2563eb; color: white; }
+.success { background: #22c55e; color: white; }
+.fail { background: #ef4444; color: white; }
+.primary { background: #0f172a; color: white; width: 100%; font-weight: bold; }
+.marker { background: #f59e0b; color: white; width: 100%; font-weight: bold; }
+.quick { background: #2563eb; color: white; }
+.danger { background: #dc2626; color: white; }
+.rush-success { background: #7c3aed; color: white; }
+.rush-fail { background: #facc15; color: #111827; }
+.connect-success { background: #ec4899; color: white; }
+.connect-fail { background: #99f6e4; color: #0f172a; }
+.tactic-success { background: #f97316; color: white; }
+.tactic-fail { background: #94a3b8; color: #0f172a; }
+.quick-pairs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.quick-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.coach {
+  background: #0f172a;
+  color: white;
+}
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.coach-card {
+  background: rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 58px;
+}
+.coach-card b { display: block; font-size: 13px; color: #bfdbfe; margin-bottom: 4px; }
+.coach-card span { font-size: 18px; font-weight: bold; }
+.coach-advice {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(34,197,94,0.18);
+  line-height: 1.5;
+}
+.record, .stat {
+  background: #f8fafc;
+  padding: 8px;
+  margin-top: 6px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+#tacticBox, #quickTacticPicker { display: none; }
+@media (max-width: 560px) {
+  .grid, .coach-grid { grid-template-columns: repeat(2, 1fr); }
+  .quick-pairs { grid-template-columns: 1fr; }
+  .grid.players { grid-template-columns: repeat(2, 1fr); }
+  .row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<h2>🏀 比赛进攻记录</h2>
+
+<div class="box coach">
+  <b>教练看板：10秒决策</b>
+  <div id="coachDashboard"></div>
+</div>
+
+<div class="box">
+  <span class="label">节次</span>
+  <div class="grid">
+    <button onclick="setQuarter(this,'第一节')">第一节</button>
+    <button onclick="setQuarter(this,'第二节')">第二节</button>
+    <button onclick="setQuarter(this,'第三节')">第三节</button>
+    <button onclick="setQuarter(this,'第四节')">第四节</button>
+  </div>
+  <span class="label">防守标记</span>
+  <div class="grid">
+    <button class="danger" onclick="showMarkerPlayerPicker('丢篮板')">丢篮板</button>
+    <button class="marker" onclick="showMarkerPlayerPicker('防守愣神')">防守愣神</button>
+  </div>
+  <div id="reboundPicker" style="display:none;">
+    <span class="label" id="markerPickerTitle">选择球员</span>
+    <div class="grid players" id="reboundList">请先添加队员</div>
+  </div>
+
+  <span class="label">四阶段录入键（点击即录入）</span>
+  <div class="quick-pairs">
+    <div class="quick-pair">
+      <button class="quick" onclick="addQuickRecord('快攻','成功')">快攻成功</button>
+      <button class="danger" onclick="addQuickRecord('快攻','失败')">快攻失败</button>
+    </div>
+    <div class="quick-pair">
+      <button class="rush-success" onclick="addQuickRecord('急攻','成功')">急攻成功</button>
+      <button class="rush-fail" onclick="addQuickRecord('急攻','失败')">急攻失败</button>
+    </div>
+    <div class="quick-pair">
+      <button class="connect-success" onclick="addQuickRecord('衔接','成功')">衔接成功</button>
+      <button class="connect-fail" onclick="addQuickRecord('衔接','失败')">衔接失败</button>
+    </div>
+    <div class="quick-pair">
+      <button class="tactic-success" onclick="showQuickTacticPicker('成功')">战术成功</button>
+      <button class="tactic-fail" onclick="showQuickTacticPicker('失败')">战术失败</button>
+    </div>
+  </div>
+  <div id="quickTacticPicker">
+    <span class="label">选择战术</span>
+    <div class="grid">
+      <button onclick="finishQuickTacticRecord('打2')">打2</button>
+      <button onclick="finishQuickTacticRecord('打5')">打5</button>
+      <button onclick="finishQuickTacticRecord('拇指')">拇指</button>
+      <button onclick="finishQuickTacticRecord('拉链')">拉链</button>
+      <button onclick="finishQuickTacticRecord('牛角')">牛角</button>
+      <button onclick="finishQuickTacticRecord('1提')">1提</button>
+      <button onclick="finishQuickTacticRecord('拍头')">拍头</button>
+      <button onclick="finishQuickTacticRecord('联2')">联2</button>
+      <button onclick="finishQuickTacticRecord('联3')">联3</button>
+      <button onclick="finishQuickTacticRecord('战术3')">战术3</button>
+      <button onclick="finishQuickTacticRecord('14')">14</button>
+      <button onclick="finishQuickTacticRecord('三角')">三角</button>
+      <button onclick="finishQuickTacticRecord('拳头')">拳头</button>
+    </div>
+  </div>
+</div>
+
+<div class="box">
+  <span class="label">补充信息</span>
+
+  <div id="tacticBox">
+    <span class="label">阵地战术</span>
+    <div class="grid">
+      <button onclick="setTactic(this,'打2')">打2</button>
+      <button onclick="setTactic(this,'打5')">打5</button>
+      <button onclick="setTactic(this,'拇指')">拇指</button>
+      <button onclick="setTactic(this,'拉链')">拉链</button>
+      <button onclick="setTactic(this,'牛角')">牛角</button>
+      <button onclick="setTactic(this,'1提')">1提</button>
+      <button onclick="setTactic(this,'拍头')">拍头</button>
+      <button onclick="setTactic(this,'联2')">联2</button>
+      <button onclick="setTactic(this,'联3')">联3</button>
+      <button onclick="setTactic(this,'战术3')">战术3</button>
+      <button onclick="setTactic(this,'14')">14</button>
+      <button onclick="setTactic(this,'三角')">三角</button>
+      <button onclick="setTactic(this,'拳头')">拳头</button>
+    </div>
+    <input id="tacticInput" placeholder="手动输入战术，输入后直接记录也可以">
+  </div>
+
+  <div class="row">
+    <div>
+      <span class="label">助攻人</span>
+      <div class="grid players" id="assistList">请先添加队员</div>
+    </div>
+    <div>
+      <span class="label">终结人</span>
+      <div class="grid players" id="finisherList">请先添加队员</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div>
+      <span class="label">终结方式</span>
+      <div class="grid">
+        <button onclick="setFinish(this,'上篮')">上篮</button>
+        <button onclick="setFinish(this,'直接3分')">3分</button>
+        <button onclick="setFinish(this,'跳投')">跳投</button>
+        <button onclick="setFinish(this,'挡拆终结')">挡拆</button>
+      </div>
+    </div>
+    <div>
+      <span class="label">终结区域</span>
+      <div class="grid">
+        <button onclick="setArea(this,'左45°')">左45°</button>
+        <button onclick="setArea(this,'右45°')">右45°</button>
+        <button onclick="setArea(this,'左0°')">左0°</button>
+        <button onclick="setArea(this,'右0°')">右0°</button>
+        <button onclick="setArea(this,'中间')">中间</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="box">
+  <b>录像回放标记</b>
+  <div class="row">
+    <input id="lostRunInput" placeholder="失分潮时间，如 03:20-04:50">
+    <input id="efficientInput" placeholder="高效阶段时间，如 06:10-08:00">
+  </div>
+  <button class="marker" onclick="addVideoMarker()">只按节次记录标记</button>
+</div>
+
+<div class="box">
+  <button onclick="resetAll()">清空选择</button>
+  <button onclick="exportCSV()">导出CSV</button>
+  <button onclick="clearSavedData()">清空全部数据</button>
+</div>
+
+<details>
+  <summary>队员管理</summary>
+  <input id="playerInput" placeholder="输入队员姓名或号码">
+  <button onclick="addPlayer()">添加队员</button>
+</details>
+
+<details open>
+  <summary>最新记录</summary>
+  <div id="list"></div>
+</details>
+
+<details open>
+  <summary>按节次显示</summary>
+  <div id="quarterLists"></div>
+</details>
+
+<details>
+  <summary>统计归纳：节间1分钟总结</summary>
+  <div id="stats"></div>
+</details>
+
+<script>
+let quarter = "";
+let phase = "";
+let tactic = "";
+let assistPlayer = "";
+let finisherPlayer = "";
+let finish = "";
+let area = "";
+let result = "";
+let pendingTacticResult = "";
+let pendingMarkerLabel = "";
+
+const defaultPlayers = [
+  "李殊洋",
+  "孙恬馨",
+  "于欣慧",
+  "尹俐骄",
+  "符钰皙",
+  "周灿一",
+  "葛滢",
+  "金紫萱",
+  "张楚涵",
+  "韩宇彤",
+  "吴若玙",
+  "段万菲",
+  "小白"
+];
+
+let players = loadJson("players", defaultPlayers.slice());
+let records = loadJson("records", []);
+
+defaultPlayers.forEach(name=>{
+  if(!players.includes(name)){
+    players.push(name);
+  }
+});
+
+function loadJson(key, fallback){
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null") || fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function saveData(){
+  localStorage.setItem("players", JSON.stringify(players));
+  localStorage.setItem("records", JSON.stringify(records));
+}
+
+function clearActive(group){
+  group.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+}
+
+function escapeHtml(value){
+  return String(value || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+function shortTime(value){
+  return String(value || "").replace(/^上午|^下午/,"");
+}
+
+function getPoints(record){
+  if(record.type === "marker" || record.result !== "成功") return 0;
+  return record.finish === "直接3分" ? 3 : 2;
+}
+
+function getRecordText(r){
+  if(typeof r === "string") return escapeHtml(r);
+
+  if(r.type === "marker"){
+    let parts = [];
+    if(r.label) parts.push(escapeHtml(r.label));
+    if(r.player) parts.push("球员 " + escapeHtml(r.player));
+    if(r.lostRunTime) parts.push("失分潮 " + escapeHtml(r.lostRunTime));
+    if(r.efficientTime) parts.push("高效阶段 " + escapeHtml(r.efficientTime));
+    return "<b>[" + escapeHtml(r.quarter) + " " + shortTime(r.time) + "] 标记</b> | " + parts.join(" | ");
+  }
+
+  let points = getPoints(r);
+  let tacticText = r.tactic ? " | 战术 " + escapeHtml(r.tactic) : "";
+  let people = (r.assistPlayer || "未选") + " → " + (r.finisherPlayer || "未选");
+  return "<b>[" + escapeHtml(r.quarter) + " " + shortTime(r.time) + "] " + escapeHtml(r.phase) + " " + escapeHtml(r.result) + "</b>" +
+    " | " + points + "分" +
+    " | " + escapeHtml(people) +
+    " | " + escapeHtml(r.finish || "未选") +
+    " | " + escapeHtml(r.area || "未选") +
+    tacticText;
+}
+
+function renderRecords(){
+  let html = "";
+  records.slice(0,80).forEach(r=>{
+    html += "<div class='record'>" + getRecordText(r) + "</div>";
+  });
+  document.getElementById("list").innerHTML = html || "暂无记录";
+  renderQuarterLists();
+  renderCoachDashboard();
+  renderStats();
+}
+
+function renderQuarterLists(){
+  let quarters = ["第一节", "第二节", "第三节", "第四节"];
+  let html = "";
+
+  quarters.forEach(q=>{
+    let qRecords = records.filter(r=>typeof r !== "string" && r.quarter === q);
+    html += "<div class='stat'><b>" + q + "</b>：共 " + qRecords.length + " 条</div>";
+    if(qRecords.length === 0){
+      html += "<div class='record'>暂无记录</div>";
+    }else{
+      qRecords.slice(0,30).forEach(r=>{
+        html += "<div class='record'>" + getRecordText(r) + "</div>";
+      });
+    }
+  });
+
+  document.getElementById("quarterLists").innerHTML = html;
+}
+
+function addPlayer(){
+  let input = document.getElementById("playerInput");
+  let name = input.value.trim();
+
+  if(!name){
+    alert("请输入队员名称");
+    return;
+  }
+
+  if(players.includes(name)){
+    alert("这个队员已经添加过了");
+    return;
+  }
+
+  players.push(name);
+  input.value = "";
+  saveData();
+  renderPlayers();
+}
+
+function renderPlayers(){
+  let assistList = document.getElementById("assistList");
+  let finisherList = document.getElementById("finisherList");
+  let reboundList = document.getElementById("reboundList");
+
+  assistList.innerHTML = "";
+  finisherList.innerHTML = "";
+  reboundList.innerHTML = "";
+
+  players.forEach(name=>{
+    let safeName = escapeHtml(name);
+    assistList.innerHTML += "<button onclick=\"setAssistPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
+    finisherList.innerHTML += "<button onclick=\"setFinisherPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
+    reboundList.innerHTML += "<button onclick=\"addPlayerMarker('" + safeName + "')\">" + safeName + "</button>";
+  });
+
+  if(players.length === 0){
+    assistList.innerHTML = "请先添加队员";
+    finisherList.innerHTML = "请先添加队员";
+    reboundList.innerHTML = "请先添加队员";
+  }
+}
+
+function setQuarter(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  quarter = val;
+}
+
+function setPhase(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  phase = val;
+
+  let tacticBox = document.getElementById("tacticBox");
+  if(val === "阵地进攻"){
+    tacticBox.style.display = "block";
+  }else{
+    tactic = "";
+    document.getElementById("tacticInput").value = "";
+    tacticBox.style.display = "none";
+    clearActive(tacticBox);
+  }
+}
+
+function setTactic(btn,val){
+  clearActive(document.getElementById("tacticBox"));
+  btn.classList.add("active");
+  tactic = val;
+  document.getElementById("tacticInput").value = val;
+}
+
+function setAssistPlayer(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  assistPlayer = val;
+}
+
+function setFinisherPlayer(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  finisherPlayer = val;
+}
+
+function setFinish(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  finish = val;
+}
+
+function setArea(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  area = val;
+}
+
+function setResult(btn,val){
+  clearActive(btn.parentNode);
+  btn.classList.add("active");
+  result = val;
+}
+
+function currentTactic(){
+  return phase === "阵地进攻" ? (tactic || document.getElementById("tacticInput").value.trim()) : "";
+}
+
+function addRecord(){
+  let finalTactic = currentTactic();
+
+  if(!quarter || !phase || !result){
+    alert("请选择节次、阶段和结果");
+    return;
+  }
+
+  if(phase === "阵地进攻" && !finalTactic){
+    alert("请选择或手动输入阵地进攻战术");
+    return;
+  }
+
+  records.unshift(createAttackRecord(phase, result, finalTactic));
+  saveData();
+  renderRecords();
+  resetAttackOnly();
+}
+
+function addQuickRecord(quickPhase, quickResult){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  let quickFinish = finish || (quickResult === "成功" ? "上篮" : "未选");
+
+  records.unshift(createAttackRecord(quickPhase, quickResult, "", quickFinish));
+  saveData();
+  renderRecords();
+}
+
+function showQuickTacticPicker(quickResult){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  pendingTacticResult = quickResult;
+  document.getElementById("quickTacticPicker").style.display = "block";
+}
+
+function finishQuickTacticRecord(chosenTactic){
+  if(!pendingTacticResult){
+    alert("请先选择战术成功或战术失败");
+    return;
+  }
+
+  let quickFinish = finish || (pendingTacticResult === "成功" ? "上篮" : "未选");
+  records.unshift(createAttackRecord("阵地进攻", pendingTacticResult, chosenTactic, quickFinish));
+  saveData();
+  renderRecords();
+  pendingTacticResult = "";
+  document.getElementById("quickTacticPicker").style.display = "none";
+}
+
+function createAttackRecord(recordPhase, recordResult, recordTactic, recordFinish){
+  return {
+    type: "attack",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    phase: recordPhase,
+    tactic: recordTactic || "",
+    assistPlayer,
+    finisherPlayer,
+    finish: recordFinish || finish,
+    area,
+    result: recordResult
+  };
+}
+
+function addVideoMarker(){
+  let lostRunTime = document.getElementById("lostRunInput").value.trim();
+  let efficientTime = document.getElementById("efficientInput").value.trim();
+
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  if(!lostRunTime && !efficientTime){
+    alert("请输入失分潮时间或高效阶段时间");
+    return;
+  }
+
+  records.unshift({
+    type: "marker",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    lostRunTime,
+    efficientTime
+  });
+
+  saveData();
+  renderRecords();
+  document.getElementById("lostRunInput").value = "";
+  document.getElementById("efficientInput").value = "";
+}
+
+function addSimpleMarker(label){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  records.unshift({
+    type: "marker",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    label
+  });
+
+  saveData();
+  renderRecords();
+}
+
+function showMarkerPlayerPicker(label){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+  pendingMarkerLabel = label;
+  document.getElementById("markerPickerTitle").textContent = "选择" + label + "球员";
+  document.getElementById("reboundPicker").style.display = "block";
+}
+
+function addPlayerMarker(player){
+  if(!quarter){
+    alert("请先选择第几节");
+    return;
+  }
+
+  if(!pendingMarkerLabel){
+    alert("请先选择丢篮板或防守愣神");
+    return;
+  }
+
+  records.unshift({
+    type: "marker",
+    time: new Date().toLocaleTimeString(),
+    quarter,
+    label: pendingMarkerLabel,
+    player
+  });
+
+  saveData();
+  renderRecords();
+  pendingMarkerLabel = "";
+  document.getElementById("reboundPicker").style.display = "none";
+}
+
+function attackRecords(){
+  return records.filter(r=>typeof r !== "string" && r.type !== "marker");
+}
+
+function markerRecords(){
+  return records.filter(r=>typeof r !== "string" && r.type === "marker");
+}
+
+function groupStats(items, keyFn){
+  let map = {};
+  items.forEach(r=>{
+    let key = keyFn(r);
+    if(!key) return;
+    if(!map[key]) map[key] = { name: key, total: 0, success: 0, fail: 0, points: 0 };
+    map[key].total += 1;
+    map[key].points += getPoints(r);
+    if(r.result === "成功") map[key].success += 1;
+    if(r.result === "失败") map[key].fail += 1;
+  });
+  return Object.values(map).sort((a,b)=>b.points - a.points || rateNumber(b.success,b.total) - rateNumber(a.success,a.total) || b.total - a.total);
+}
+
+function renderCoachDashboard(){
+  let usableRecords = attackRecords();
+  let box = document.getElementById("coachDashboard");
+
+  if(usableRecords.length === 0){
+    box.innerHTML = "<div class='coach-advice'>还没有进攻数据。比赛中先选节次，再用四阶段快捷录入记录成功/失败。</div>";
+    return;
+  }
+
+  let currentQuarterRecords = quarter ? usableRecords.filter(r=>r.quarter === quarter) : usableRecords;
+  let scopeRecords = currentQuarterRecords.length ? currentQuarterRecords : usableRecords;
+  let phaseBest = groupStats(scopeRecords, r=>r.phase)[0];
+  let tacticBest = groupStats(scopeRecords, r=>r.tactic)[0];
+  let finisherBest = groupStats(scopeRecords, r=>r.finisherPlayer)[0];
+  let totalPoints = scopeRecords.reduce((sum,r)=>sum + getPoints(r), 0);
+  let success = scopeRecords.filter(r=>r.result === "成功").length;
+
+  let advice = [];
+  if(phaseBest) advice.push("优先打法：" + phaseBest.name + "，" + phaseBest.points + "分，成功率 " + rate(phaseBest.success, phaseBest.total));
+  if(tacticBest) advice.push("继续战术：" + tacticBest.name + "，" + tacticBest.success + "/" + tacticBest.total);
+  if(finisherBest) advice.push("优先终结：" + finisherBest.name + "，" + finisherBest.points + "分，成功率 " + rate(finisherBest.success, finisherBest.total));
+
+  box.innerHTML =
+    "<div class='coach-grid'>" +
+      coachCard("球队效率", totalPoints + "分 / " + scopeRecords.length + "回合", "成功率 " + rate(success, scopeRecords.length)) +
+      coachCard("最有效进攻", phaseBest ? phaseBest.name : "暂无", phaseBest ? phaseBest.points + "分，" + rate(phaseBest.success, phaseBest.total) : "") +
+      coachCard("该继续战术", tacticBest ? tacticBest.name : "暂无", tacticBest ? tacticBest.success + "/" + tacticBest.total + "，" + tacticBest.points + "分" : "") +
+      coachCard("最高效终结", finisherBest ? finisherBest.name : "暂无", finisherBest ? finisherBest.points + "分，" + rate(finisherBest.success, finisherBest.total) : "") +
+    "</div>" +
+    "<div class='coach-advice'><b>给教练：</b>" + advice.map(escapeHtml).join("；") + "</div>";
+}
+
+function coachCard(title, main, sub){
+  return "<div class='coach-card'><b>" + escapeHtml(title) + "</b><span>" + escapeHtml(main) + "</span><br>" + escapeHtml(sub || "") + "</div>";
+}
+
+function renderStats(){
+  let usableRecords = attackRecords();
+  let markers = markerRecords();
+  if(usableRecords.length === 0 && markers.length === 0){
+    document.getElementById("stats").innerHTML = "暂无可统计数据";
+    return;
+  }
+
+  let quarters = ["第一节", "第二节", "第三节", "第四节"];
+  let phases = ["快攻", "急攻", "衔接", "阵地进攻"];
+  let html = "";
+
+  if(usableRecords.length > 0){
+    quarters.forEach(q=>{
+      let qRecords = usableRecords.filter(r=>r.quarter === q);
+      let points = qRecords.reduce((sum,r)=>sum + getPoints(r), 0);
+      let success = qRecords.filter(r=>r.result === "成功").length;
+      html += "<div class='stat'><b>" + q + "</b>：记录 " + qRecords.length + " 次，总得分 " + points + " 分，成功率 " + rate(success,qRecords.length) + "</div>";
+    });
+
+    html += "<div class='stat'><b>四阶段统计</b><br>";
+    phases.forEach(p=>{
+      let phaseRecords = usableRecords.filter(r=>r.phase === p);
+      let total = phaseRecords.length;
+      let success = phaseRecords.filter(r=>r.result === "成功").length;
+      let fail = phaseRecords.filter(r=>r.result === "失败").length;
+      let points = phaseRecords.reduce((sum,r)=>sum + getPoints(r), 0);
+      html += p + "：得分 " + points + "，成功/失败 " + success + ":" + fail + "，成功率 " + rate(success,total) + "<br>";
+    });
+    html += "</div>";
+
+    html += renderRank("战术排行", groupStats(usableRecords, r=>r.tactic));
+    html += renderRank("终结人排行", groupStats(usableRecords, r=>r.finisherPlayer));
+    html += renderRank("终结区域排行", groupStats(usableRecords, r=>r.area));
+  }
+
+  html += renderMarkerStats(markers);
+
+  document.getElementById("stats").innerHTML = html;
+}
+
+function renderMarkerStats(markers){
+  if(markers.length === 0){
+    return "<div class='stat'><b>防守标记统计</b><br>暂无防守标记</div>";
+  }
+
+  let html = "<div class='stat'><b>防守标记统计</b><br>";
+  ["丢篮板", "防守愣神"].forEach(label=>{
+    let list = markers.filter(r=>r.label === label);
+    html += label + "：" + list.length + " 次<br>";
+    let playerMap = {};
+    list.forEach(r=>{
+      let name = r.player || "未选";
+      playerMap[name] = (playerMap[name] || 0) + 1;
+    });
+    Object.keys(playerMap)
+      .sort((a,b)=>playerMap[b] - playerMap[a])
+      .slice(0,5)
+      .forEach(name=>{
+        html += "　" + escapeHtml(name) + "：" + playerMap[name] + " 次<br>";
+      });
+  });
+  html += "</div>";
+  return html;
+}
+
+function renderRank(title, items){
+  let html = "<div class='stat'><b>" + title + "</b><br>";
+  if(items.length === 0){
+    return html + "暂无数据</div>";
+  }
+  items.slice(0,5).forEach(item=>{
+    html += escapeHtml(item.name) + "：" + item.points + "分，" + item.success + "/" + item.total + "，成功率 " + rate(item.success,item.total) + "<br>";
+  });
+  return html + "</div>";
+}
+
+function rate(success,total){
+  if(total === 0) return "0%";
+  return Math.round(success / total * 100) + "%";
+}
+
+function rateNumber(success,total){
+  if(total === 0) return 0;
+  return success / total;
+}
+
+function resetAttackOnly(){
+  phase = "";
+  tactic = "";
+  assistPlayer = "";
+  finisherPlayer = "";
+  finish = "";
+  area = "";
+  result = "";
+  pendingTacticResult = "";
+  pendingMarkerLabel = "";
+  document.querySelectorAll("#tacticBox button, #quickTacticPicker button, #assistList button, #finisherList button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".box button").forEach(b=>{
+    if(!["第一节","第二节","第三节","第四节"].includes(b.textContent)){
+      b.classList.remove("active");
+    }
+  });
+  document.getElementById("tacticBox").style.display = "none";
+  document.getElementById("quickTacticPicker").style.display = "none";
+  document.getElementById("reboundPicker").style.display = "none";
+  document.getElementById("tacticInput").value = "";
+}
+
+function resetAll(){
+  quarter = "";
+  resetAttackOnly();
+  document.querySelectorAll("button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("lostRunInput").value = "";
+  document.getElementById("efficientInput").value = "";
+  renderCoachDashboard();
+}
+
+function clearSavedData(){
+  if(confirm("确定要清空所有记录吗？队员名单会保留。")){
+    records = [];
+    saveData();
+    renderRecords();
+    resetAll();
+  }
+}
+
+function exportCSV(){
+  if(records.length === 0){
+    alert("暂无记录可导出");
+    return;
+  }
+  let rows = [["类型","时间","节次","阶段","战术","助攻人","终结人","终结方式","终结区域","标记内容","标记球员","失分潮时间","高效阶段时间","结果","得分"]];
+  records.forEach(r=>{
+    if(typeof r === "string"){
+      rows.push(["旧记录",r,"","","","","","","","","","","","",""]);
+    }else if(r.type === "marker"){
+      rows.push(["标记",r.time,r.quarter,"","","","","","",r.label,r.player,r.lostRunTime,r.efficientTime,"",""]);
+    }else{
+      rows.push(["进攻回合",r.time,r.quarter,r.phase,r.tactic,r.assistPlayer,r.finisherPlayer,r.finish,r.area,"","","","",r.result,getPoints(r)]);
+    }
+  });
+  let csv = rows.map(row=>row.map(cell=>'"' + String(cell || "").replaceAll('"','""') + '"').join(",")).join("\n");
+  let blob = new Blob(["\ufeff" + csv], {type: "text/csv;charset=utf-8;"});
+  let url = URL.createObjectURL(blob);
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "比赛进攻记录.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+window.onload = function(){
+  saveData();
+  renderPlayers();
+  renderRecords();
+};
+</script>
+
+</body>
+</html>
