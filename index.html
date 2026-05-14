@@ -136,6 +136,15 @@ input {
     <button onclick="setQuarter(this,'第三节')">第三节</button>
     <button onclick="setQuarter(this,'第四节')">第四节</button>
   </div>
+  <span class="label">防守标记</span>
+  <div class="grid">
+    <button class="danger" onclick="showMarkerPlayerPicker('丢篮板')">丢篮板</button>
+    <button class="marker" onclick="showMarkerPlayerPicker('防守愣神')">防守愣神</button>
+  </div>
+  <div id="reboundPicker" style="display:none;">
+    <span class="label" id="markerPickerTitle">选择球员</span>
+    <div class="grid players" id="reboundList">请先添加队员</div>
+  </div>
 
   <span class="label">四阶段录入键（点击即录入）</span>
   <div class="quick-pairs">
@@ -240,14 +249,6 @@ input {
     <input id="efficientInput" placeholder="高效阶段时间，如 06:10-08:00">
   </div>
   <button class="marker" onclick="addVideoMarker()">只按节次记录标记</button>
-  <div class="grid">
-    <button class="danger" onclick="showReboundPicker()">丢篮板</button>
-    <button class="marker" onclick="addSimpleMarker('防守愣神')">防守愣神</button>
-  </div>
-  <div id="reboundPicker" style="display:none;">
-    <span class="label">选择丢篮板球员</span>
-    <div class="grid players" id="reboundList">请先添加队员</div>
-  </div>
 </div>
 
 <div class="box">
@@ -287,6 +288,7 @@ let finish = "";
 let area = "";
 let result = "";
 let pendingTacticResult = "";
+let pendingMarkerLabel = "";
 
 const defaultPlayers = [
   "李殊洋",
@@ -434,7 +436,7 @@ function renderPlayers(){
     let safeName = escapeHtml(name);
     assistList.innerHTML += "<button onclick=\"setAssistPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
     finisherList.innerHTML += "<button onclick=\"setFinisherPlayer(this,'" + safeName + "')\">" + safeName + "</button>";
-    reboundList.innerHTML += "<button onclick=\"addReboundMarker('" + safeName + "')\">" + safeName + "</button>";
+    reboundList.innerHTML += "<button onclick=\"addPlayerMarker('" + safeName + "')\">" + safeName + "</button>";
   });
 
   if(players.length === 0){
@@ -623,17 +625,24 @@ function addSimpleMarker(label){
   renderRecords();
 }
 
-function showReboundPicker(){
+function showMarkerPlayerPicker(label){
   if(!quarter){
     alert("请先选择第几节");
     return;
   }
+  pendingMarkerLabel = label;
+  document.getElementById("markerPickerTitle").textContent = "选择" + label + "球员";
   document.getElementById("reboundPicker").style.display = "block";
 }
 
-function addReboundMarker(player){
+function addPlayerMarker(player){
   if(!quarter){
     alert("请先选择第几节");
+    return;
+  }
+
+  if(!pendingMarkerLabel){
+    alert("请先选择丢篮板或防守愣神");
     return;
   }
 
@@ -641,17 +650,22 @@ function addReboundMarker(player){
     type: "marker",
     time: new Date().toLocaleTimeString(),
     quarter,
-    label: "丢篮板",
+    label: pendingMarkerLabel,
     player
   });
 
   saveData();
   renderRecords();
+  pendingMarkerLabel = "";
   document.getElementById("reboundPicker").style.display = "none";
 }
 
 function attackRecords(){
   return records.filter(r=>typeof r !== "string" && r.type !== "marker");
+}
+
+function markerRecords(){
+  return records.filter(r=>typeof r !== "string" && r.type === "marker");
 }
 
 function groupStats(items, keyFn){
@@ -706,7 +720,8 @@ function coachCard(title, main, sub){
 
 function renderStats(){
   let usableRecords = attackRecords();
-  if(usableRecords.length === 0){
+  let markers = markerRecords();
+  if(usableRecords.length === 0 && markers.length === 0){
     document.getElementById("stats").innerHTML = "暂无可统计数据";
     return;
   }
@@ -715,29 +730,58 @@ function renderStats(){
   let phases = ["快攻", "急攻", "衔接", "阵地进攻"];
   let html = "";
 
-  quarters.forEach(q=>{
-    let qRecords = usableRecords.filter(r=>r.quarter === q);
-    let points = qRecords.reduce((sum,r)=>sum + getPoints(r), 0);
-    let success = qRecords.filter(r=>r.result === "成功").length;
-    html += "<div class='stat'><b>" + q + "</b>：记录 " + qRecords.length + " 次，总得分 " + points + " 分，成功率 " + rate(success,qRecords.length) + "</div>";
-  });
+  if(usableRecords.length > 0){
+    quarters.forEach(q=>{
+      let qRecords = usableRecords.filter(r=>r.quarter === q);
+      let points = qRecords.reduce((sum,r)=>sum + getPoints(r), 0);
+      let success = qRecords.filter(r=>r.result === "成功").length;
+      html += "<div class='stat'><b>" + q + "</b>：记录 " + qRecords.length + " 次，总得分 " + points + " 分，成功率 " + rate(success,qRecords.length) + "</div>";
+    });
 
-  html += "<div class='stat'><b>四阶段统计</b><br>";
-  phases.forEach(p=>{
-    let phaseRecords = usableRecords.filter(r=>r.phase === p);
-    let total = phaseRecords.length;
-    let success = phaseRecords.filter(r=>r.result === "成功").length;
-    let fail = phaseRecords.filter(r=>r.result === "失败").length;
-    let points = phaseRecords.reduce((sum,r)=>sum + getPoints(r), 0);
-    html += p + "：得分 " + points + "，成功/失败 " + success + ":" + fail + "，成功率 " + rate(success,total) + "<br>";
-  });
-  html += "</div>";
+    html += "<div class='stat'><b>四阶段统计</b><br>";
+    phases.forEach(p=>{
+      let phaseRecords = usableRecords.filter(r=>r.phase === p);
+      let total = phaseRecords.length;
+      let success = phaseRecords.filter(r=>r.result === "成功").length;
+      let fail = phaseRecords.filter(r=>r.result === "失败").length;
+      let points = phaseRecords.reduce((sum,r)=>sum + getPoints(r), 0);
+      html += p + "：得分 " + points + "，成功/失败 " + success + ":" + fail + "，成功率 " + rate(success,total) + "<br>";
+    });
+    html += "</div>";
 
-  html += renderRank("战术排行", groupStats(usableRecords, r=>r.tactic));
-  html += renderRank("终结人排行", groupStats(usableRecords, r=>r.finisherPlayer));
-  html += renderRank("终结区域排行", groupStats(usableRecords, r=>r.area));
+    html += renderRank("战术排行", groupStats(usableRecords, r=>r.tactic));
+    html += renderRank("终结人排行", groupStats(usableRecords, r=>r.finisherPlayer));
+    html += renderRank("终结区域排行", groupStats(usableRecords, r=>r.area));
+  }
+
+  html += renderMarkerStats(markers);
 
   document.getElementById("stats").innerHTML = html;
+}
+
+function renderMarkerStats(markers){
+  if(markers.length === 0){
+    return "<div class='stat'><b>防守标记统计</b><br>暂无防守标记</div>";
+  }
+
+  let html = "<div class='stat'><b>防守标记统计</b><br>";
+  ["丢篮板", "防守愣神"].forEach(label=>{
+    let list = markers.filter(r=>r.label === label);
+    html += label + "：" + list.length + " 次<br>";
+    let playerMap = {};
+    list.forEach(r=>{
+      let name = r.player || "未选";
+      playerMap[name] = (playerMap[name] || 0) + 1;
+    });
+    Object.keys(playerMap)
+      .sort((a,b)=>playerMap[b] - playerMap[a])
+      .slice(0,5)
+      .forEach(name=>{
+        html += "　" + escapeHtml(name) + "：" + playerMap[name] + " 次<br>";
+      });
+  });
+  html += "</div>";
+  return html;
 }
 
 function renderRank(title, items){
@@ -770,6 +814,7 @@ function resetAttackOnly(){
   area = "";
   result = "";
   pendingTacticResult = "";
+  pendingMarkerLabel = "";
   document.querySelectorAll("#tacticBox button, #quickTacticPicker button, #assistList button, #finisherList button").forEach(b=>b.classList.remove("active"));
   document.querySelectorAll(".box button").forEach(b=>{
     if(!["第一节","第二节","第三节","第四节"].includes(b.textContent)){
