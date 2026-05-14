@@ -58,7 +58,7 @@
     .app {
       min-height: 100vh;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
     }
 
     .topbar {
@@ -158,12 +158,35 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .view-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 10px 14px 0;
+      background: #eef3f7;
+    }
+
+    .view-tab {
+      min-width: 110px;
+      padding: 0 14px;
+      font-weight: 800;
+    }
+
+    .view-tab.active {
+      background: #172330;
+      border-color: #172330;
+      color: #fff;
+    }
+
     .main {
       display: grid;
       grid-template-columns: 280px minmax(460px, 1fr) 360px;
       gap: 14px;
       padding: 14px;
       min-height: 0;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     .panel {
@@ -559,6 +582,36 @@
       display: none;
     }
 
+    .summary-page {
+      padding: 14px;
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+    }
+
+    .final-top {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .final-table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 235px);
+    }
+
+    .final-team-row td {
+      background: #eef4fa;
+      color: #193146;
+      font-weight: 900;
+    }
+
+    .final-player-row.has-data td:first-child {
+      color: #172330;
+    }
+
     @media (max-width: 1180px) {
       .main {
         grid-template-columns: 230px minmax(420px, 1fr);
@@ -658,7 +711,12 @@
       </div>
     </header>
 
-    <main class="main">
+    <nav class="view-tabs" aria-label="页面切换">
+      <button id="liveViewBtn" class="view-tab active" type="button">临场记录</button>
+      <button id="summaryViewBtn" class="view-tab" type="button">球员汇总</button>
+    </nav>
+
+    <main id="livePage" class="main">
       <section class="panel side">
         <div class="panel-header">
           <h2 class="panel-title">球员选择</h2>
@@ -696,6 +754,7 @@
         <div class="legend">
           <span><span class="dot-sample make-sample"></span>命中</span>
           <span><span class="dot-sample miss-sample"></span>未中</span>
+          <span id="courtPeriodInfo"><b>当前节投篮图：</b>第1节 · 0次投篮</span>
           <span><b>提示：</b>先选球员，再选投篮结果，点击球场位置。</span>
         </div>
       </section>
@@ -764,6 +823,46 @@
         </div>
       </section>
     </main>
+
+    <section id="finalPage" class="summary-page hidden">
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">球员最终汇总</h2>
+          <button id="exportFinalBtn" type="button">导出汇总CSV</button>
+        </div>
+        <div id="finalTop" class="final-top"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">每名球员单项总数</h2>
+          <span class="tag">主客队 1-12号</span>
+        </div>
+        <div class="final-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>球队/球员</th>
+                <th>得分</th>
+                <th>投篮</th>
+                <th>2分</th>
+                <th>3分</th>
+                <th>罚球</th>
+                <th>前板</th>
+                <th>后板</th>
+                <th>篮板</th>
+                <th>助攻</th>
+                <th>失误</th>
+                <th>抢断</th>
+                <th>盖帽</th>
+                <th>效率</th>
+              </tr>
+            </thead>
+            <tbody id="finalStatsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </div>
 
   <script>
@@ -786,6 +885,7 @@
       activeTeam: "home",
       selectedPlayer: 1,
       shotMode: "2M",
+      currentView: "live",
       events: [],
       teams: {
         home: { name: "主队" },
@@ -806,10 +906,18 @@
       players: document.getElementById("players"),
       selectedInfo: document.getElementById("selectedInfo"),
       court: document.getElementById("court"),
+      courtPeriodInfo: document.getElementById("courtPeriodInfo"),
       log: document.getElementById("log"),
       eventCount: document.getElementById("eventCount"),
       summaryCards: document.getElementById("summaryCards"),
       statsBody: document.getElementById("statsBody"),
+      livePage: document.getElementById("livePage"),
+      finalPage: document.getElementById("finalPage"),
+      liveViewBtn: document.getElementById("liveViewBtn"),
+      summaryViewBtn: document.getElementById("summaryViewBtn"),
+      finalTop: document.getElementById("finalTop"),
+      finalStatsBody: document.getElementById("finalStatsBody"),
+      exportFinalBtn: document.getElementById("exportFinalBtn"),
       undoBtn: document.getElementById("undoBtn"),
       exportBtn: document.getElementById("exportBtn"),
       saveBtn: document.getElementById("saveBtn"),
@@ -901,6 +1009,17 @@
       return `${row[madeKey]}/${row[attKey]} ${pct(row[madeKey], row[attKey])}`;
     }
 
+    function fieldGoalText(row) {
+      const made = row.twoM + row.threeM;
+      const attempts = row.twoA + row.threeA;
+      return `${made}/${attempts} ${pct(made, attempts)}`;
+    }
+
+    function playerEfficiency(row) {
+      const misses = (row.twoA - row.twoM) + (row.threeA - row.threeM) + (row.ftA - row.ftM);
+      return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk - misses - row.to;
+    }
+
     function updateScores(stats) {
       els.homeScore.textContent = sumTeam(stats, "home").pts;
       els.awayScore.textContent = sumTeam(stats, "away").pts;
@@ -918,9 +1037,11 @@
 
     function renderCourt() {
       els.court.querySelectorAll(".shot-dot").forEach(dot => dot.remove());
-      state.events
-        .filter(event => ["2M", "2A", "3M", "3A"].includes(event.type) && event.x !== null)
-        .forEach(event => {
+      const currentPeriod = els.period.value;
+      const currentShots = state.events
+        .filter(event => event.period === currentPeriod && ["2M", "2A", "3M", "3A"].includes(event.type) && event.x !== null);
+
+      currentShots.forEach(event => {
           const dot = document.createElement("div");
           dot.className = `shot-dot ${event.type.endsWith("M") ? "make" : "miss"}`;
           dot.style.left = `${event.x}%`;
@@ -929,6 +1050,7 @@
           dot.title = `${teamName(event.team)} #${event.player} ${eventLabels[event.type]}`;
           els.court.appendChild(dot);
         });
+      els.courtPeriodInfo.innerHTML = `<b>当前节投篮图：</b>${currentPeriod} · ${currentShots.length}次投篮`;
     }
 
     function renderLog() {
@@ -993,10 +1115,84 @@
       els.statsBody.innerHTML = rows.join("");
     }
 
+    function renderFinalStats(stats) {
+      const home = sumTeam(stats, "home");
+      const away = sumTeam(stats, "away");
+      const totalReb = home.oreb + home.dreb + away.oreb + away.dreb;
+      const totalAst = home.ast + away.ast;
+      const totalTo = home.to + away.to;
+      const totalPts = home.pts + away.pts;
+
+      const cards = [
+        ["总得分", `${totalPts}`],
+        ["总篮板", `${totalReb}`],
+        ["总助攻", `${totalAst}`],
+        ["总失误", `${totalTo}`]
+      ];
+      els.finalTop.innerHTML = cards.map(([label, value]) => `
+        <div class="metric"><span>${label}</span><strong>${value}</strong></div>
+      `).join("");
+
+      const rows = [];
+      ["home", "away"].forEach(team => {
+        const teamRow = sumTeam(stats, team);
+        rows.push(`
+          <tr class="final-team-row">
+            <td>${teamName(team)} 合计</td>
+            <td>${teamRow.pts}</td>
+            <td>${fieldGoalText(teamRow)}</td>
+            <td>${shotText(teamRow, "twoM", "twoA")}</td>
+            <td>${shotText(teamRow, "threeM", "threeA")}</td>
+            <td>${shotText(teamRow, "ftM", "ftA")}</td>
+            <td>${teamRow.oreb}</td>
+            <td>${teamRow.dreb}</td>
+            <td>${teamRow.oreb + teamRow.dreb}</td>
+            <td>${teamRow.ast}</td>
+            <td>${teamRow.to}</td>
+            <td>${teamRow.stl}</td>
+            <td>${teamRow.blk}</td>
+            <td>${playerEfficiency(teamRow)}</td>
+          </tr>
+        `);
+
+        for (let i = 1; i <= 12; i += 1) {
+          const row = stats[team][i];
+          const hasData = Object.values(row).some(Boolean);
+          rows.push(`
+            <tr class="final-player-row${hasData ? " has-data" : ""}"${hasData ? "" : " style=\"color:#8a98a7\""}>
+              <td>${teamName(team)} #${i}</td>
+              <td>${row.pts}</td>
+              <td>${fieldGoalText(row)}</td>
+              <td>${shotText(row, "twoM", "twoA")}</td>
+              <td>${shotText(row, "threeM", "threeA")}</td>
+              <td>${shotText(row, "ftM", "ftA")}</td>
+              <td>${row.oreb}</td>
+              <td>${row.dreb}</td>
+              <td>${row.oreb + row.dreb}</td>
+              <td>${row.ast}</td>
+              <td>${row.to}</td>
+              <td>${row.stl}</td>
+              <td>${row.blk}</td>
+              <td>${playerEfficiency(row)}</td>
+            </tr>
+          `);
+        }
+      });
+      els.finalStatsBody.innerHTML = rows.join("");
+    }
+
     function renderShotMode() {
       document.querySelectorAll(".mode-btn").forEach(btn => {
         btn.dataset.active = String(btn.dataset.shot === state.shotMode);
       });
+    }
+
+    function renderView() {
+      const isSummary = state.currentView === "summary";
+      els.livePage.classList.toggle("hidden", isSummary);
+      els.finalPage.classList.toggle("hidden", !isSummary);
+      els.liveViewBtn.classList.toggle("active", !isSummary);
+      els.summaryViewBtn.classList.toggle("active", isSummary);
     }
 
     function render() {
@@ -1010,6 +1206,8 @@
       renderLog();
       renderSummary(stats);
       renderStats(stats);
+      renderFinalStats(stats);
+      renderView();
       localStorage.setItem("basketball-live-tracker", JSON.stringify({
         teams: state.teams,
         events: state.events,
@@ -1038,6 +1236,38 @@
         .map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(","))
         .join("\n");
       download(`篮球临场记录-${new Date().toISOString().slice(0, 10)}.csv`, "\ufeff" + csv, "text/csv;charset=utf-8");
+    }
+
+    function exportFinalCsv() {
+      const stats = calculateStats();
+      const header = ["球队", "球员", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "抢断", "盖帽", "效率"];
+      const body = [];
+      ["home", "away"].forEach(team => {
+        for (let i = 1; i <= 12; i += 1) {
+          const row = stats[team][i];
+          body.push([
+            teamName(team),
+            `#${i}`,
+            row.pts,
+            fieldGoalText(row),
+            shotText(row, "twoM", "twoA"),
+            shotText(row, "threeM", "threeA"),
+            shotText(row, "ftM", "ftA"),
+            row.oreb,
+            row.dreb,
+            row.oreb + row.dreb,
+            row.ast,
+            row.to,
+            row.stl,
+            row.blk,
+            playerEfficiency(row)
+          ]);
+        }
+      });
+      const csv = [header, ...body]
+        .map(row => row.map(cell => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+        .join("\n");
+      download(`篮球球员最终汇总-${new Date().toISOString().slice(0, 10)}.csv`, "\ufeff" + csv, "text/csv;charset=utf-8");
     }
 
     function saveJson() {
@@ -1131,9 +1361,18 @@
     });
 
     els.exportBtn.addEventListener("click", exportCsv);
+    els.exportFinalBtn.addEventListener("click", exportFinalCsv);
     els.saveBtn.addEventListener("click", saveJson);
     els.loadBtn.addEventListener("click", () => els.loadFile.click());
     els.sampleBtn.addEventListener("click", addSample);
+    els.liveViewBtn.addEventListener("click", () => {
+      state.currentView = "live";
+      render();
+    });
+    els.summaryViewBtn.addEventListener("click", () => {
+      state.currentView = "summary";
+      render();
+    });
     els.teamHomeName.addEventListener("input", render);
     els.teamAwayName.addEventListener("input", render);
     els.period.addEventListener("change", render);
