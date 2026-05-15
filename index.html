@@ -449,7 +449,8 @@
       line-height: 1;
       font-weight: 900;
       box-shadow: 0 2px 8px rgba(0,0,0,.25);
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
     }
 
     .shot-dot.make {
@@ -611,29 +612,47 @@
 
     .log-item {
       display: grid;
-      grid-template-columns: auto 1fr auto auto;
-      gap: 8px;
-      padding: 7px 10px;
+      grid-template-columns: 1fr 46px;
+      gap: 10px;
+      padding: 8px 10px;
       border-bottom: 1px solid #edf1f5;
       align-items: center;
       font-size: 13px;
+      background: #fff;
     }
 
-    .log-time {
+    .log-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
       color: var(--muted);
       font-variant-numeric: tabular-nums;
-      white-space: nowrap;
+      font-size: 12px;
     }
 
     .log-main {
       min-width: 0;
+      font-weight: 800;
+      color: #172330;
+      margin-bottom: 3px;
     }
 
     .delete-log-btn {
+      width: 42px;
+      height: 42px;
+      min-height: 42px;
+      padding: 0;
+      color: #fff;
+      background: #c23b3b;
+      border-color: #c23b3b;
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .undo-delete-btn {
       min-height: 28px;
-      padding: 0 8px;
-      color: #9e3126;
-      border-color: #e3b4ad;
+      padding: 0 10px;
       font-size: 12px;
       font-weight: 800;
     }
@@ -975,7 +994,7 @@
           <span><span class="dot-sample and-one-sample"></span>2+1</span>
           <span><span class="dot-sample draw-foul-sample"></span>造罚球</span>
           <span id="courtPeriodInfo"><b>当前节投篮图：</b>第1节 · 0次投篮</span>
-          <span><b>提示：</b>先选球员，再选投篮结果，点击球场位置。</span>
+          <span><b>提示：</b>先选球员，再选投篮结果，点击球场位置；双击标记可删除。</span>
         </div>
         <div id="periodMapTabs" class="period-map-tabs" aria-label="按节查看投篮图"></div>
       </section>
@@ -1126,6 +1145,7 @@
       shotMode: "2M",
       currentView: "live",
       rosterOpen: false,
+      lastDeletedEvent: null,
       events: [],
       teams: {
         home: { name: "主队", players: [...defaultPlayers] },
@@ -1232,6 +1252,7 @@
         x: position ? position.x : null,
         y: position ? position.y : null
       };
+      state.lastDeletedEvent = null;
       state.events.push(item);
       render();
     }
@@ -1369,6 +1390,11 @@
           dot.style.top = `${event.y}%`;
           dot.textContent = playerName(event.team, event.player) || event.player;
           dot.title = `${playerLabel(event.team, event.player)} ${eventLabels[event.type]}`;
+          dot.dataset.eventId = event.id;
+          dot.addEventListener("dblclick", dotEvent => {
+            dotEvent.stopPropagation();
+            deleteEvent(event.id);
+          });
           els.court.appendChild(dot);
         });
       els.courtPeriodInfo.innerHTML = `<b>${teamName(state.activeTeam)}投篮图：</b>${currentPeriod} · ${currentShots.length}次标记`;
@@ -1390,30 +1416,43 @@
     }
 
     function renderLog() {
-      els.eventCount.textContent = `${state.events.length}条`;
+      els.eventCount.innerHTML = state.lastDeletedEvent
+        ? `${state.events.length}条 <button id="undoDeleteBtn" class="undo-delete-btn" type="button">恢复刚删</button>`
+        : `${state.events.length}条`;
       els.log.innerHTML = "";
       [...state.events].reverse().forEach(event => {
         const row = document.createElement("div");
         row.className = "log-item";
         row.innerHTML = `
-          <div class="log-time">${event.period} ${event.clock}</div>
-          <div class="log-main">${playerLabel(event.team, event.player)} ${eventLabels[event.type]}</div>
-          <div class="tag">${event.at}</div>
-          <button class="delete-log-btn" data-delete-event="${event.id}" type="button">删除</button>
+          <div>
+            <div class="log-main">${playerLabel(event.team, event.player)} ${eventLabels[event.type]}</div>
+            <div class="log-meta"><span>${event.period}</span><span>${event.clock}</span><span>${event.at}</span></div>
+          </div>
+          <button class="delete-log-btn" data-delete-event="${event.id}" type="button" title="删除这条记录">×</button>
         `;
         els.log.appendChild(row);
       });
       els.log.querySelectorAll(".delete-log-btn").forEach(btn => {
         btn.addEventListener("click", () => deleteEvent(btn.dataset.deleteEvent));
       });
+      const undoDeleteBtn = document.getElementById("undoDeleteBtn");
+      if (undoDeleteBtn) undoDeleteBtn.addEventListener("click", restoreDeletedEvent);
     }
 
     function deleteEvent(id) {
-      const event = state.events.find(item => item.id === id);
+      const index = state.events.findIndex(item => item.id === id);
+      const event = state.events[index];
       if (!event) return;
-      const label = `${event.period} ${event.clock} ${playerLabel(event.team, event.player)} ${eventLabels[event.type]}`;
-      if (!confirm(`确定删除这条记录？\n${label}`)) return;
-      state.events = state.events.filter(item => item.id !== id);
+      state.lastDeletedEvent = { event, index };
+      state.events.splice(index, 1);
+      render();
+    }
+
+    function restoreDeletedEvent() {
+      if (!state.lastDeletedEvent) return;
+      const { event, index } = state.lastDeletedEvent;
+      state.events.splice(Math.min(index, state.events.length), 0, event);
+      state.lastDeletedEvent = null;
       render();
     }
 
