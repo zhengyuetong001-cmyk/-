@@ -30,6 +30,7 @@
       font-family: "Microsoft YaHei", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
       background: #eef3f7;
+      overflow: hidden;
     }
 
     button, input, select {
@@ -64,7 +65,7 @@
     .topbar {
       background: #172330;
       color: #fff;
-      padding: 12px 18px;
+      padding: 9px 14px;
       display: grid;
       grid-template-columns: minmax(190px, 1fr) auto auto;
       gap: 14px;
@@ -81,7 +82,7 @@
 
     .brand h1 {
       margin: 0;
-      font-size: 20px;
+      font-size: 18px;
       line-height: 1.15;
       font-weight: 800;
       white-space: nowrap;
@@ -116,7 +117,7 @@
     }
 
     .score {
-      font-size: 30px;
+      font-size: 28px;
       line-height: 1;
       font-weight: 900;
       min-width: 44px;
@@ -161,7 +162,7 @@
     .view-tabs {
       display: flex;
       gap: 8px;
-      padding: 10px 14px 0;
+      padding: 8px 14px 0;
       background: #eef3f7;
     }
 
@@ -179,9 +180,12 @@
 
     .main {
       display: grid;
-      grid-template-columns: 280px minmax(460px, 1fr) 360px;
-      gap: 14px;
-      padding: 14px;
+      grid-template-columns: 285px minmax(420px, 1fr) 345px;
+      grid-template-rows: minmax(0, 1fr);
+      gap: 10px;
+      height: calc(100vh - 106px);
+      overflow: hidden;
+      padding: 10px;
       min-height: 0;
     }
 
@@ -199,7 +203,7 @@
     }
 
     .panel-header {
-      padding: 12px 14px;
+      padding: 9px 12px;
       border-bottom: 1px solid var(--line);
       display: flex;
       align-items: center;
@@ -216,8 +220,9 @@
     }
 
     .side {
+      position: relative;
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto auto auto minmax(0, 1fr);
       min-height: 0;
     }
 
@@ -225,7 +230,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      padding: 12px;
+      padding: 8px;
       border-bottom: 1px solid var(--line);
     }
 
@@ -238,7 +243,7 @@
 
     .players {
       overflow: auto;
-      padding: 10px 12px;
+      padding: 8px;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
@@ -246,12 +251,24 @@
     }
 
     .player-btn {
-      min-height: 56px;
+      min-height: 46px;
       display: grid;
       place-items: center;
       font-size: 18px;
       font-weight: 800;
       background: var(--soft);
+    }
+
+    .player-name {
+      display: block;
+      font-size: 12px;
+      line-height: 1.2;
+      margin-top: 3px;
+      font-weight: 700;
+      color: inherit;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .player-btn.active {
@@ -261,22 +278,73 @@
     }
 
     .selected-strip {
-      padding: 12px;
-      background: #f7fafc;
-      border-top: 1px solid var(--line);
+      padding: 8px;
+      background: #fbfcfd;
+      border-bottom: 1px solid var(--line);
       color: var(--muted);
       font-size: 14px;
       line-height: 1.45;
     }
 
+    .selected-trigger {
+      width: 100%;
+      min-height: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      font-weight: 800;
+      background: #f7fafc;
+    }
+
     .selected-strip strong {
       color: var(--ink);
-      font-size: 18px;
+      font-size: 16px;
+    }
+
+    .roster-editor {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 128px;
+      z-index: 10;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      display: grid;
+      gap: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .roster-editor.hidden {
+      display: none !important;
+    }
+
+    .roster-editor label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .roster-editor textarea {
+      width: 100%;
+      min-height: 48px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+      line-height: 1.4;
     }
 
     .court-panel {
       display: grid;
-      grid-template-rows: auto minmax(320px, 1fr) auto;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      min-height: 0;
     }
 
     .mode-row {
@@ -297,17 +365,19 @@
     }
 
     .court-wrap {
-      padding: 14px;
+      padding: 10px;
       min-height: 0;
       display: grid;
+      overflow: hidden;
     }
 
     .court {
       position: relative;
       width: 100%;
-      min-height: 330px;
-      aspect-ratio: 1.48 / 1;
-      max-height: calc(100vh - 225px);
+      min-height: 0;
+      height: 100%;
+      aspect-ratio: 0.72 / 1;
+      max-height: none;
       margin: auto;
       background: var(--court);
       border: 4px solid var(--court-line);
@@ -322,33 +392,33 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(90deg, transparent calc(50% - 1px), rgba(129,85,47,.95) calc(50% - 1px), rgba(129,85,47,.95) calc(50% + 1px), transparent calc(50% + 1px)),
-        radial-gradient(circle at 50% 50%, transparent 0 7.5%, rgba(129,85,47,.95) 7.7% 8.2%, transparent 8.4%),
-        radial-gradient(circle at 5% 50%, transparent 0 16%, rgba(129,85,47,.95) 16.2% 16.8%, transparent 17%),
-        radial-gradient(circle at 95% 50%, transparent 0 16%, rgba(129,85,47,.95) 16.2% 16.8%, transparent 17%);
+        linear-gradient(180deg, transparent calc(100% - 2px), rgba(129,85,47,.95) calc(100% - 2px), rgba(129,85,47,.95) 100%),
+        radial-gradient(circle at 50% 11%, transparent 0 12%, rgba(129,85,47,.95) 12.2% 12.9%, transparent 13.1%),
+        radial-gradient(circle at 50% 11%, transparent 0 47%, rgba(129,85,47,.95) 47.2% 47.8%, transparent 48%),
+        radial-gradient(circle at 50% 100%, transparent 0 14%, rgba(129,85,47,.95) 14.2% 14.8%, transparent 15%);
       pointer-events: none;
     }
 
     .paint {
       position: absolute;
-      top: 31%;
-      width: 16%;
-      height: 38%;
+      left: 31%;
+      width: 38%;
+      height: 22%;
       border: 3px solid var(--court-line);
       pointer-events: none;
     }
 
     .paint.left {
-      left: -3px;
+      top: -3px;
     }
 
     .paint.right {
-      right: -3px;
+      display: none;
     }
 
     .rim {
       position: absolute;
-      top: calc(50% - 13px);
+      left: calc(50% - 13px);
       width: 26px;
       height: 26px;
       border: 4px solid #a7402a;
@@ -358,11 +428,11 @@
     }
 
     .rim.left {
-      left: 6.5%;
+      top: 9%;
     }
 
     .rim.right {
-      right: 6.5%;
+      display: none;
     }
 
     .shot-dot {
@@ -391,7 +461,7 @@
     }
 
     .legend {
-      padding: 0 14px 14px;
+      padding: 0 10px 10px;
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
@@ -401,6 +471,26 @@
 
     .legend b {
       color: var(--ink);
+    }
+
+    .period-map-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 0 10px 8px;
+    }
+
+    .period-map-btn {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .period-map-btn.active {
+      background: #172330;
+      border-color: #172330;
+      color: #fff;
     }
 
     .dot-sample {
@@ -422,12 +512,12 @@
 
     .actions {
       display: grid;
-      grid-template-rows: auto auto 1fr;
+      grid-template-rows: auto auto auto auto minmax(0, 1fr);
       min-height: 0;
     }
 
     .event-grid {
-      padding: 12px;
+      padding: 8px;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
@@ -435,7 +525,7 @@
     }
 
     .event-btn {
-      min-height: 52px;
+      min-height: 43px;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -459,13 +549,37 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      padding: 12px;
+      padding: 8px;
       border-bottom: 1px solid var(--line);
       background: #fbfcfd;
     }
 
     .toolbar button {
       font-weight: 800;
+    }
+
+    .game-archive {
+      display: grid;
+      gap: 8px;
+      padding: 8px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .archive-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .archive-row input,
+    .archive-row select {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px;
+      color: var(--ink);
+      background: #fff;
     }
 
     .danger {
@@ -483,7 +597,7 @@
       display: grid;
       grid-template-columns: auto 1fr auto;
       gap: 8px;
-      padding: 9px 12px;
+      padding: 7px 10px;
       border-bottom: 1px solid #edf1f5;
       align-items: center;
       font-size: 13px;
@@ -511,8 +625,8 @@
     }
 
     .stats {
+      display: none;
       grid-column: 1 / -1;
-      display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
     }
@@ -576,6 +690,12 @@
     .metric strong {
       font-size: 22px;
       font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .metric.leader strong {
+      font-size: 16px;
+      line-height: 1.35;
     }
 
     .file-input {
@@ -612,9 +732,67 @@
       color: #172330;
     }
 
-    @media (max-width: 1180px) {
+    .efficiency-cell {
+      min-width: 160px;
+    }
+
+    .efficiency-box {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .efficiency-value {
+      font-size: 17px;
+      font-weight: 900;
+      color: #17324b;
+      text-align: right;
+    }
+
+    .efficiency-track {
+      height: 10px;
+      border-radius: 999px;
+      background: #e4eaf0;
+      overflow: hidden;
+    }
+
+    .efficiency-bar {
+      height: 100%;
+      width: var(--eff-width);
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2f7d69, #1d5f9f);
+    }
+
+    .efficiency-bar.negative {
+      background: #c23b3b;
+    }
+
+    .rank-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 30px;
+      height: 24px;
+      margin-right: 8px;
+      border-radius: 999px;
+      background: #edf3f9;
+      color: #365064;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .rank-badge.top {
+      background: #ffe8a8;
+      color: #7a4b00;
+    }
+
+    @media (max-width: 980px) {
       .main {
         grid-template-columns: 230px minmax(420px, 1fr);
+        height: auto;
+        min-height: calc(100vh - 106px);
+        overflow: visible;
       }
 
       .actions {
@@ -643,6 +821,10 @@
     }
 
     @media (max-width: 760px) {
+      body {
+        overflow: auto;
+      }
+
       .topbar {
         grid-template-columns: 1fr;
       }
@@ -655,6 +837,8 @@
       .main {
         grid-template-columns: 1fr;
         padding: 10px;
+        height: auto;
+        overflow: visible;
       }
 
       .players {
@@ -686,7 +870,7 @@
     <header class="topbar">
       <div class="brand">
         <h1>临场篮球数据记录平台</h1>
-        <span>投篮分布 · 失误 · 前后场篮板 · 1-12号球员</span>
+        <span>投篮分布 · 失误 · 前后场篮板 · 自定义球员名单</span>
       </div>
       <div class="scoreboard">
         <div class="team-score home">
@@ -726,11 +910,18 @@
           <button id="homeToggle" class="toggle-btn active" type="button">主队</button>
           <button id="awayToggle" class="toggle-btn" type="button">客队</button>
         </div>
-        <div id="players" class="players" aria-label="球员编号"></div>
         <div class="selected-strip">
-          当前记录<br>
-          <strong id="selectedInfo">主队 #1</strong>
+          <button id="selectedRecordBtn" class="selected-trigger" type="button">
+            <span>当前记录</span>
+            <strong id="selectedInfo">主队 #1</strong>
+          </button>
         </div>
+        <div id="rosterEditor" class="roster-editor hidden">
+          <label for="rosterInput">当前球队名单，可用空格、换行或逗号分隔</label>
+          <textarea id="rosterInput" aria-label="当前球队名单"></textarea>
+          <button id="applyRosterBtn" type="button">更新当前球队名单</button>
+        </div>
+        <div id="players" class="players" aria-label="球员编号"></div>
       </section>
 
       <section class="panel court-panel">
@@ -757,6 +948,7 @@
           <span id="courtPeriodInfo"><b>当前节投篮图：</b>第1节 · 0次投篮</span>
           <span><b>提示：</b>先选球员，再选投篮结果，点击球场位置。</span>
         </div>
+        <div id="periodMapTabs" class="period-map-tabs" aria-label="按节查看投篮图"></div>
       </section>
 
       <section class="panel actions">
@@ -783,6 +975,16 @@
           <button id="sampleBtn" type="button">示例</button>
           <input id="loadFile" class="file-input" type="file" accept="application/json">
         </div>
+        <div class="game-archive">
+          <div class="archive-row">
+            <input id="gameName" value="比赛1" aria-label="本场比赛名称">
+            <button id="saveLocalGameBtn" type="button">保存本场到本地</button>
+          </div>
+          <div class="archive-row">
+            <select id="savedGames" aria-label="本地比赛存档"></select>
+            <button id="loadLocalGameBtn" type="button">查看本地比赛</button>
+          </div>
+        </div>
         <div id="log" class="log" aria-live="polite"></div>
       </section>
 
@@ -797,7 +999,7 @@
         <div>
           <div class="panel-header">
             <h2 class="panel-title">球员数据表</h2>
-            <span class="tag">1-12号</span>
+              <span class="tag">按名单</span>
           </div>
           <div class="table-wrap">
             <table>
@@ -836,7 +1038,7 @@
       <div class="panel">
         <div class="panel-header">
           <h2 class="panel-title">每名球员单项总数</h2>
-          <span class="tag">主客队 1-12号</span>
+          <span class="tag">主客队名单</span>
         </div>
         <div class="final-table-wrap">
           <table>
@@ -855,7 +1057,7 @@
                 <th>失误</th>
                 <th>抢断</th>
                 <th>盖帽</th>
-                <th>效率</th>
+                <th>效率值</th>
               </tr>
             </thead>
             <tbody id="finalStatsBody"></tbody>
@@ -881,15 +1083,20 @@
       BLK: "盖帽"
     };
 
+    const defaultPlayers = "尹 孙 吴 韩 李 于 段 金 符 周 张 杨 葛".split(" ");
+    const liveStorageKey = "basketball-live-tracker";
+    const archiveStorageKey = "basketball-game-archive";
+
     const state = {
       activeTeam: "home",
       selectedPlayer: 1,
       shotMode: "2M",
       currentView: "live",
+      rosterOpen: false,
       events: [],
       teams: {
-        home: { name: "主队" },
-        away: { name: "客队" }
+        home: { name: "主队", players: [...defaultPlayers] },
+        away: { name: "客队", players: [...defaultPlayers] }
       }
     };
 
@@ -904,9 +1111,14 @@
       homeToggle: document.getElementById("homeToggle"),
       awayToggle: document.getElementById("awayToggle"),
       players: document.getElementById("players"),
+      selectedRecordBtn: document.getElementById("selectedRecordBtn"),
       selectedInfo: document.getElementById("selectedInfo"),
+      rosterEditor: document.getElementById("rosterEditor"),
+      rosterInput: document.getElementById("rosterInput"),
+      applyRosterBtn: document.getElementById("applyRosterBtn"),
       court: document.getElementById("court"),
       courtPeriodInfo: document.getElementById("courtPeriodInfo"),
+      periodMapTabs: document.getElementById("periodMapTabs"),
       log: document.getElementById("log"),
       eventCount: document.getElementById("eventCount"),
       summaryCards: document.getElementById("summaryCards"),
@@ -924,27 +1136,55 @@
       loadBtn: document.getElementById("loadBtn"),
       loadFile: document.getElementById("loadFile"),
       clearBtn: document.getElementById("clearBtn"),
-      sampleBtn: document.getElementById("sampleBtn")
+      sampleBtn: document.getElementById("sampleBtn"),
+      gameName: document.getElementById("gameName"),
+      saveLocalGameBtn: document.getElementById("saveLocalGameBtn"),
+      savedGames: document.getElementById("savedGames"),
+      loadLocalGameBtn: document.getElementById("loadLocalGameBtn")
     };
 
     function teamName(team) {
       return state.teams[team].name || (team === "home" ? "主队" : "客队");
     }
 
+    function roster(team) {
+      if (!Array.isArray(state.teams[team].players) || state.teams[team].players.length === 0) {
+        state.teams[team].players = [...defaultPlayers];
+      }
+      return state.teams[team].players;
+    }
+
+    function playerName(team, player) {
+      return roster(team)[player - 1] || "";
+    }
+
+    function playerLabel(team, player) {
+      const name = playerName(team, player);
+      return `${teamName(team)} #${player}${name ? ` ${name}` : ""}`;
+    }
+
+    function parseRoster(text) {
+      return text
+        .split(/[\s,，、]+/)
+        .map(name => name.trim())
+        .filter(Boolean);
+    }
+
     function buildPlayers() {
       els.players.innerHTML = "";
-      for (let i = 1; i <= 12; i += 1) {
+      roster(state.activeTeam).forEach((name, index) => {
+        const i = index + 1;
         const btn = document.createElement("button");
         btn.className = "player-btn";
         btn.type = "button";
-        btn.textContent = `#${i}`;
+        btn.innerHTML = `#${i}<span class="player-name">${name}</span>`;
         btn.dataset.player = String(i);
         btn.addEventListener("click", () => {
           state.selectedPlayer = i;
           render();
         });
         els.players.appendChild(btn);
-      }
+      });
     }
 
     function addEvent(type, position) {
@@ -973,10 +1213,16 @@
     function calculateStats() {
       const stats = { home: {}, away: {} };
       ["home", "away"].forEach(team => {
-        for (let i = 1; i <= 12; i += 1) stats[team][i] = makeBlankStats();
+        const eventMax = state.events
+          .filter(event => event.team === team)
+          .reduce((max, event) => Math.max(max, Number(event.player) || 0), 0);
+        const count = Math.max(roster(team).length, eventMax, 1);
+        for (let i = 1; i <= count; i += 1) stats[team][i] = makeBlankStats();
       });
 
       state.events.forEach(event => {
+        if (!stats[event.team]) stats[event.team] = {};
+        if (!stats[event.team][event.player]) stats[event.team][event.player] = makeBlankStats();
         const row = stats[event.team][event.player];
         if (event.type === "2M") { row.twoM += 1; row.twoA += 1; row.pts += 2; }
         if (event.type === "2A") row.twoA += 1;
@@ -1020,19 +1266,58 @@
       return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk - misses - row.to;
     }
 
+    function efficiencyCell(value, maxValue) {
+      const width = maxValue > 0 ? Math.max(6, Math.round((Math.max(value, 0) / maxValue) * 100)) : 0;
+      return `
+        <div class="efficiency-box">
+          <span class="efficiency-value">${value}</span>
+          <span class="efficiency-track">
+            <span class="efficiency-bar${value < 0 ? " negative" : ""}" style="--eff-width:${value < 0 ? 20 : width}%"></span>
+          </span>
+        </div>
+      `;
+    }
+
+    function getPlayerRows(stats) {
+      const rows = [];
+      ["home", "away"].forEach(team => {
+        const count = Math.max(roster(team).length, ...Object.keys(stats[team]).map(Number));
+        for (let i = 1; i <= count; i += 1) {
+          const row = stats[team][i];
+          if (!row) continue;
+          const hasData = Object.values(row).some(Boolean);
+          rows.push({
+            team,
+            player: i,
+            row,
+            hasData,
+            efficiency: playerEfficiency(row)
+          });
+        }
+      });
+      return rows;
+    }
+
     function updateScores(stats) {
       els.homeScore.textContent = sumTeam(stats, "home").pts;
       els.awayScore.textContent = sumTeam(stats, "away").pts;
     }
 
     function renderPlayers() {
+      const currentRoster = roster(state.activeTeam);
+      if (state.selectedPlayer > currentRoster.length) state.selectedPlayer = Math.max(1, currentRoster.length);
+      buildPlayers();
       document.querySelectorAll(".player-btn").forEach(btn => {
         btn.classList.toggle("active", Number(btn.dataset.player) === state.selectedPlayer);
       });
       els.homeToggle.classList.toggle("active", state.activeTeam === "home");
       els.awayToggle.classList.toggle("active", state.activeTeam === "away");
       els.activeTeamLabel.textContent = teamName(state.activeTeam);
-      els.selectedInfo.textContent = `${teamName(state.activeTeam)} #${state.selectedPlayer}`;
+      els.selectedInfo.textContent = playerLabel(state.activeTeam, state.selectedPlayer);
+      els.rosterEditor.classList.toggle("hidden", !state.rosterOpen);
+      if (document.activeElement !== els.rosterInput) {
+        els.rosterInput.value = currentRoster.join(" ");
+      }
     }
 
     function renderCourt() {
@@ -1046,11 +1331,26 @@
           dot.className = `shot-dot ${event.type.endsWith("M") ? "make" : "miss"}`;
           dot.style.left = `${event.x}%`;
           dot.style.top = `${event.y}%`;
-          dot.textContent = event.player;
-          dot.title = `${teamName(event.team)} #${event.player} ${eventLabels[event.type]}`;
+          dot.textContent = playerName(event.team, event.player) || event.player;
+          dot.title = `${playerLabel(event.team, event.player)} ${eventLabels[event.type]}`;
           els.court.appendChild(dot);
         });
       els.courtPeriodInfo.innerHTML = `<b>当前节投篮图：</b>${currentPeriod} · ${currentShots.length}次投篮`;
+    }
+
+    function renderPeriodMapTabs() {
+      const periods = Array.from(els.period.options).map(option => option.value || option.textContent);
+      els.periodMapTabs.innerHTML = periods.map(period => {
+        const shots = state.events.filter(event => event.period === period && ["2M", "2A", "3M", "3A"].includes(event.type)).length;
+        const active = period === els.period.value ? " active" : "";
+        return `<button class="period-map-btn${active}" data-period-map="${period}" type="button">${period} ${shots}</button>`;
+      }).join("");
+      els.periodMapTabs.querySelectorAll(".period-map-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          els.period.value = btn.dataset.periodMap;
+          render();
+        });
+      });
     }
 
     function renderLog() {
@@ -1061,7 +1361,7 @@
         row.className = "log-item";
         row.innerHTML = `
           <div class="log-time">${event.period} ${event.clock}</div>
-          <div class="log-main">${teamName(event.team)} #${event.player} ${eventLabels[event.type]}</div>
+          <div class="log-main">${playerLabel(event.team, event.player)} ${eventLabels[event.type]}</div>
           <div class="tag">${event.at}</div>
         `;
         els.log.appendChild(row);
@@ -1091,12 +1391,14 @@
     function renderStats(stats) {
       const rows = [];
       ["home", "away"].forEach(team => {
-        for (let i = 1; i <= 12; i += 1) {
+        const count = Math.max(roster(team).length, ...Object.keys(stats[team]).map(Number));
+        for (let i = 1; i <= count; i += 1) {
           const row = stats[team][i];
+          if (!row) continue;
           const hasData = Object.values(row).some(Boolean);
           rows.push(`
             <tr${hasData ? "" : " style=\"color:#8a98a7\""}>
-              <td>${teamName(team)} #${i}</td>
+              <td>${playerLabel(team, i)}</td>
               <td>${row.pts}</td>
               <td>${shotText(row, "twoM", "twoA")}</td>
               <td>${shotText(row, "threeM", "threeA")}</td>
@@ -1122,15 +1424,21 @@
       const totalAst = home.ast + away.ast;
       const totalTo = home.to + away.to;
       const totalPts = home.pts + away.pts;
+      const playerRows = getPlayerRows(stats);
+      const activePlayers = playerRows
+        .filter(item => item.hasData)
+        .sort((a, b) => b.efficiency - a.efficiency || b.row.pts - a.row.pts || a.player - b.player);
+      const maxEfficiency = Math.max(0, ...activePlayers.map(item => item.efficiency));
+      const leaders = activePlayers.slice(0, 3);
 
       const cards = [
         ["总得分", `${totalPts}`],
         ["总篮板", `${totalReb}`],
         ["总助攻", `${totalAst}`],
-        ["总失误", `${totalTo}`]
+        ["效率榜", leaders.length ? leaders.map((item, index) => `${index + 1}. ${playerLabel(item.team, item.player)} ${item.efficiency}`).join(" / ") : "暂无"]
       ];
       els.finalTop.innerHTML = cards.map(([label, value]) => `
-        <div class="metric"><span>${label}</span><strong>${value}</strong></div>
+        <div class="metric${label === "效率榜" ? " leader" : ""}"><span>${label}</span><strong>${value}</strong></div>
       `).join("");
 
       const rows = [];
@@ -1151,16 +1459,22 @@
             <td>${teamRow.to}</td>
             <td>${teamRow.stl}</td>
             <td>${teamRow.blk}</td>
-            <td>${playerEfficiency(teamRow)}</td>
+            <td class="efficiency-cell">${efficiencyCell(playerEfficiency(teamRow), maxEfficiency)}</td>
           </tr>
         `);
 
-        for (let i = 1; i <= 12; i += 1) {
-          const row = stats[team][i];
-          const hasData = Object.values(row).some(Boolean);
+        const teamPlayers = playerRows
+          .filter(item => item.team === team)
+          .sort((a, b) => Number(b.hasData) - Number(a.hasData) || b.efficiency - a.efficiency || b.row.pts - a.row.pts || a.player - b.player);
+
+        teamPlayers.forEach(item => {
+          const row = item.row;
+          const rank = activePlayers.findIndex(active => active.team === item.team && active.player === item.player) + 1;
+          const rankText = item.hasData ? `第${rank}` : "-";
+          const rankClass = rank > 0 && rank <= 3 ? "rank-badge top" : "rank-badge";
           rows.push(`
-            <tr class="final-player-row${hasData ? " has-data" : ""}"${hasData ? "" : " style=\"color:#8a98a7\""}>
-              <td>${teamName(team)} #${i}</td>
+            <tr class="final-player-row${item.hasData ? " has-data" : ""}"${item.hasData ? "" : " style=\"color:#8a98a7\""}>
+              <td><span class="${rankClass}">${rankText}</span>${playerLabel(team, item.player)}</td>
               <td>${row.pts}</td>
               <td>${fieldGoalText(row)}</td>
               <td>${shotText(row, "twoM", "twoA")}</td>
@@ -1173,10 +1487,10 @@
               <td>${row.to}</td>
               <td>${row.stl}</td>
               <td>${row.blk}</td>
-              <td>${playerEfficiency(row)}</td>
+              <td class="efficiency-cell">${efficiencyCell(item.efficiency, maxEfficiency)}</td>
             </tr>
           `);
-        }
+        });
       });
       els.finalStatsBody.innerHTML = rows.join("");
     }
@@ -1195,6 +1509,54 @@
       els.summaryViewBtn.classList.toggle("active", isSummary);
     }
 
+    function getGameData() {
+      return {
+        teams: state.teams,
+        events: state.events,
+        period: els.period.value,
+        clock: els.clock.value,
+        gameName: els.gameName.value.trim() || "未命名比赛",
+        savedAt: new Date().toISOString()
+      };
+    }
+
+    function normalizeTeams(teams) {
+      const normalized = {
+        home: { name: teams?.home?.name || "主队", players: teams?.home?.players || [...defaultPlayers] },
+        away: { name: teams?.away?.name || "客队", players: teams?.away?.players || [...defaultPlayers] }
+      };
+      ["home", "away"].forEach(team => {
+        normalized[team].players = Array.isArray(normalized[team].players)
+          ? normalized[team].players.map(name => String(name).trim()).filter(Boolean)
+          : [...defaultPlayers];
+        if (normalized[team].players.length === 0) normalized[team].players = [...defaultPlayers];
+      });
+      return normalized;
+    }
+
+    function getArchive() {
+      try {
+        const data = JSON.parse(localStorage.getItem(archiveStorageKey) || "[]");
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function setArchive(data) {
+      localStorage.setItem(archiveStorageKey, JSON.stringify(data));
+      renderSavedGames();
+    }
+
+    function renderSavedGames() {
+      const archive = getArchive();
+      const selected = els.savedGames.value;
+      els.savedGames.innerHTML = archive.length
+        ? archive.map(game => `<option value="${game.id}">${game.name} · ${new Date(game.savedAt).toLocaleString("zh-CN", { hour12: false })}</option>`).join("")
+        : `<option value="">暂无本地比赛</option>`;
+      if (selected && archive.some(game => game.id === selected)) els.savedGames.value = selected;
+    }
+
     function render() {
       state.teams.home.name = els.teamHomeName.value.trim() || "主队";
       state.teams.away.name = els.teamAwayName.value.trim() || "客队";
@@ -1203,17 +1565,14 @@
       renderPlayers();
       renderShotMode();
       renderCourt();
+      renderPeriodMapTabs();
       renderLog();
       renderSummary(stats);
       renderStats(stats);
       renderFinalStats(stats);
       renderView();
-      localStorage.setItem("basketball-live-tracker", JSON.stringify({
-        teams: state.teams,
-        events: state.events,
-        period: els.period.value,
-        clock: els.clock.value
-      }));
+      renderSavedGames();
+      localStorage.setItem(liveStorageKey, JSON.stringify(getGameData()));
     }
 
     function download(filename, content, type) {
@@ -1227,9 +1586,9 @@
     }
 
     function exportCsv() {
-      const header = ["节次", "时间", "球队", "球员", "事件", "球场X%", "球场Y%", "记录时间"];
+      const header = ["节次", "时间", "球队", "球员编号", "球员姓名", "事件", "球场X%", "球场Y%", "记录时间"];
       const body = state.events.map(event => [
-        event.period, event.clock, teamName(event.team), `#${event.player}`, eventLabels[event.type],
+        event.period, event.clock, teamName(event.team), `#${event.player}`, playerName(event.team, event.player), eventLabels[event.type],
         event.x ?? "", event.y ?? "", event.at
       ]);
       const csv = [header, ...body]
@@ -1240,14 +1599,17 @@
 
     function exportFinalCsv() {
       const stats = calculateStats();
-      const header = ["球队", "球员", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "抢断", "盖帽", "效率"];
+      const header = ["球队", "球员编号", "球员姓名", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "抢断", "盖帽", "效率"];
       const body = [];
       ["home", "away"].forEach(team => {
-        for (let i = 1; i <= 12; i += 1) {
+        const count = Math.max(roster(team).length, ...Object.keys(stats[team]).map(Number));
+        for (let i = 1; i <= count; i += 1) {
           const row = stats[team][i];
+          if (!row) continue;
           body.push([
             teamName(team),
             `#${i}`,
+            playerName(team, i),
             row.pts,
             fieldGoalText(row),
             shotText(row, "twoM", "twoA"),
@@ -1271,33 +1633,55 @@
     }
 
     function saveJson() {
-      const data = {
-        teams: state.teams,
-        events: state.events,
-        period: els.period.value,
-        clock: els.clock.value
-      };
+      const data = getGameData();
       download(`篮球临场记录-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(data, null, 2), "application/json");
     }
 
     function loadData(data) {
-      state.teams = data.teams || state.teams;
+      state.teams = normalizeTeams(data.teams);
       state.events = Array.isArray(data.events) ? data.events : [];
       els.teamHomeName.value = state.teams.home?.name || "主队";
       els.teamAwayName.value = state.teams.away?.name || "客队";
       els.period.value = data.period || "第1节";
       els.clock.value = data.clock || "10:00";
+      els.gameName.value = data.gameName || "比赛1";
+      state.selectedPlayer = Math.min(state.selectedPlayer, roster(state.activeTeam).length);
       render();
     }
 
     function loadLocal() {
-      const saved = localStorage.getItem("basketball-live-tracker");
+      const saved = localStorage.getItem(liveStorageKey);
       if (!saved) return;
       try {
         loadData(JSON.parse(saved));
       } catch {
-        localStorage.removeItem("basketball-live-tracker");
+        localStorage.removeItem(liveStorageKey);
       }
+    }
+
+    function saveLocalGame() {
+      const archive = getArchive();
+      const name = els.gameName.value.trim() || `比赛${archive.length + 1}`;
+      const data = getGameData();
+      const existingIndex = archive.findIndex(game => game.name === name);
+      const item = {
+        id: existingIndex >= 0 ? archive[existingIndex].id : `${Date.now()}-${Math.random()}`,
+        name,
+        savedAt: new Date().toISOString(),
+        data: { ...data, gameName: name }
+      };
+      if (existingIndex >= 0) archive[existingIndex] = item;
+      else archive.unshift(item);
+      setArchive(archive);
+      els.savedGames.value = item.id;
+      els.gameName.value = name;
+    }
+
+    function loadLocalGame() {
+      const id = els.savedGames.value;
+      const game = getArchive().find(item => item.id === id);
+      if (!game) return;
+      loadData(game.data);
     }
 
     function addSample() {
@@ -1322,11 +1706,13 @@
 
     els.homeToggle.addEventListener("click", () => {
       state.activeTeam = "home";
+      state.selectedPlayer = Math.min(state.selectedPlayer, roster("home").length);
       render();
     });
 
     els.awayToggle.addEventListener("click", () => {
       state.activeTeam = "away";
+      state.selectedPlayer = Math.min(state.selectedPlayer, roster("away").length);
       render();
     });
 
@@ -1365,6 +1751,23 @@
     els.saveBtn.addEventListener("click", saveJson);
     els.loadBtn.addEventListener("click", () => els.loadFile.click());
     els.sampleBtn.addEventListener("click", addSample);
+    els.selectedRecordBtn.addEventListener("click", () => {
+      state.rosterOpen = !state.rosterOpen;
+      render();
+    });
+    els.applyRosterBtn.addEventListener("click", () => {
+      const names = parseRoster(els.rosterInput.value);
+      if (names.length === 0) {
+        alert("请至少输入一名球员。");
+        return;
+      }
+      state.teams[state.activeTeam].players = names;
+      state.selectedPlayer = Math.min(state.selectedPlayer, names.length);
+      state.rosterOpen = false;
+      render();
+    });
+    els.saveLocalGameBtn.addEventListener("click", saveLocalGame);
+    els.loadLocalGameBtn.addEventListener("click", loadLocalGame);
     els.liveViewBtn.addEventListener("click", () => {
       state.currentView = "live";
       render();
