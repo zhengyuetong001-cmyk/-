@@ -460,6 +460,14 @@
       background: var(--miss);
     }
 
+    .shot-dot.and-one {
+      background: #7a3db8;
+    }
+
+    .shot-dot.draw-foul {
+      background: #e07a2f;
+    }
+
     .legend {
       padding: 0 10px 10px;
       display: flex;
@@ -508,6 +516,14 @@
 
     .miss-sample {
       background: var(--miss);
+    }
+
+    .and-one-sample {
+      background: #7a3db8;
+    }
+
+    .draw-foul-sample {
+      background: #e07a2f;
     }
 
     .actions {
@@ -932,6 +948,8 @@
             <button class="mode-btn" data-shot="2A" type="button">2分失</button>
             <button class="mode-btn" data-shot="3M" type="button">3分进</button>
             <button class="mode-btn" data-shot="3A" type="button">3分失</button>
+            <button class="mode-btn" data-shot="AND1" type="button">2+1</button>
+            <button class="mode-btn" data-shot="DRAW_FOUL" type="button">造罚球</button>
           </div>
         </div>
         <div class="court-wrap">
@@ -945,6 +963,8 @@
         <div class="legend">
           <span><span class="dot-sample make-sample"></span>命中</span>
           <span><span class="dot-sample miss-sample"></span>未中</span>
+          <span><span class="dot-sample and-one-sample"></span>2+1</span>
+          <span><span class="dot-sample draw-foul-sample"></span>造罚球</span>
           <span id="courtPeriodInfo"><b>当前节投篮图：</b>第1节 · 0次投篮</span>
           <span><b>提示：</b>先选球员，再选投篮结果，点击球场位置。</span>
         </div>
@@ -1055,6 +1075,8 @@
                 <th>篮板</th>
                 <th>助攻</th>
                 <th>失误</th>
+                <th>2+1</th>
+                <th>造罚球</th>
                 <th>抢断</th>
                 <th>盖帽</th>
                 <th>效率值</th>
@@ -1073,6 +1095,8 @@
       "2A": "2分未中",
       "3M": "3分命中",
       "3A": "3分未中",
+      AND1: "2+1",
+      DRAW_FOUL: "造成罚球",
       FTM: "罚球命中",
       FTA: "罚球未中",
       OREB: "前场篮板",
@@ -1206,7 +1230,7 @@
     function makeBlankStats() {
       return {
         pts: 0, twoM: 0, twoA: 0, threeM: 0, threeA: 0, ftM: 0, ftA: 0,
-        oreb: 0, dreb: 0, ast: 0, to: 0, stl: 0, blk: 0
+        oreb: 0, dreb: 0, ast: 0, to: 0, and1: 0, drawFoul: 0, stl: 0, blk: 0
       };
     }
 
@@ -1228,6 +1252,8 @@
         if (event.type === "2A") row.twoA += 1;
         if (event.type === "3M") { row.threeM += 1; row.threeA += 1; row.pts += 3; }
         if (event.type === "3A") row.threeA += 1;
+        if (event.type === "AND1") { row.twoM += 1; row.twoA += 1; row.pts += 2; row.and1 += 1; }
+        if (event.type === "DRAW_FOUL") row.drawFoul += 1;
         if (event.type === "FTM") { row.ftM += 1; row.ftA += 1; row.pts += 1; }
         if (event.type === "FTA") row.ftA += 1;
         if (event.type === "OREB") row.oreb += 1;
@@ -1263,7 +1289,7 @@
 
     function playerEfficiency(row) {
       const misses = (row.twoA - row.twoM) + (row.threeA - row.threeM) + (row.ftA - row.ftM);
-      return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk - misses - row.to;
+      return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk + row.and1 + row.drawFoul - misses - row.to;
     }
 
     function efficiencyCell(value, maxValue) {
@@ -1324,24 +1350,25 @@
       els.court.querySelectorAll(".shot-dot").forEach(dot => dot.remove());
       const currentPeriod = els.period.value;
       const currentShots = state.events
-        .filter(event => event.period === currentPeriod && ["2M", "2A", "3M", "3A"].includes(event.type) && event.x !== null);
+        .filter(event => event.team === state.activeTeam && event.period === currentPeriod && ["2M", "2A", "3M", "3A", "AND1", "DRAW_FOUL"].includes(event.type) && event.x !== null);
 
       currentShots.forEach(event => {
           const dot = document.createElement("div");
-          dot.className = `shot-dot ${event.type.endsWith("M") ? "make" : "miss"}`;
+          const dotType = event.type === "AND1" ? "and-one" : event.type === "DRAW_FOUL" ? "draw-foul" : event.type.endsWith("M") ? "make" : "miss";
+          dot.className = `shot-dot ${dotType}`;
           dot.style.left = `${event.x}%`;
           dot.style.top = `${event.y}%`;
           dot.textContent = playerName(event.team, event.player) || event.player;
           dot.title = `${playerLabel(event.team, event.player)} ${eventLabels[event.type]}`;
           els.court.appendChild(dot);
         });
-      els.courtPeriodInfo.innerHTML = `<b>当前节投篮图：</b>${currentPeriod} · ${currentShots.length}次投篮`;
+      els.courtPeriodInfo.innerHTML = `<b>${teamName(state.activeTeam)}投篮图：</b>${currentPeriod} · ${currentShots.length}次标记`;
     }
 
     function renderPeriodMapTabs() {
       const periods = Array.from(els.period.options).map(option => option.value || option.textContent);
       els.periodMapTabs.innerHTML = periods.map(period => {
-        const shots = state.events.filter(event => event.period === period && ["2M", "2A", "3M", "3A"].includes(event.type)).length;
+        const shots = state.events.filter(event => event.team === state.activeTeam && event.period === period && ["2M", "2A", "3M", "3A", "AND1", "DRAW_FOUL"].includes(event.type)).length;
         const active = period === els.period.value ? " active" : "";
         return `<button class="period-map-btn${active}" data-period-map="${period}" type="button">${period} ${shots}</button>`;
       }).join("");
@@ -1408,6 +1435,8 @@
               <td>${row.oreb + row.dreb}</td>
               <td>${row.ast}</td>
               <td>${row.to}</td>
+              <td>${row.and1}</td>
+              <td>${row.drawFoul}</td>
               <td>${row.stl}</td>
               <td>${row.blk}</td>
             </tr>
@@ -1457,6 +1486,8 @@
             <td>${teamRow.oreb + teamRow.dreb}</td>
             <td>${teamRow.ast}</td>
             <td>${teamRow.to}</td>
+            <td>${teamRow.and1}</td>
+            <td>${teamRow.drawFoul}</td>
             <td>${teamRow.stl}</td>
             <td>${teamRow.blk}</td>
             <td class="efficiency-cell">${efficiencyCell(playerEfficiency(teamRow), maxEfficiency)}</td>
@@ -1485,6 +1516,8 @@
               <td>${row.oreb + row.dreb}</td>
               <td>${row.ast}</td>
               <td>${row.to}</td>
+              <td>${row.and1}</td>
+              <td>${row.drawFoul}</td>
               <td>${row.stl}</td>
               <td>${row.blk}</td>
               <td class="efficiency-cell">${efficiencyCell(item.efficiency, maxEfficiency)}</td>
@@ -1599,7 +1632,7 @@
 
     function exportFinalCsv() {
       const stats = calculateStats();
-      const header = ["球队", "球员编号", "球员姓名", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "抢断", "盖帽", "效率"];
+      const header = ["球队", "球员编号", "球员姓名", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "2+1", "造罚球", "抢断", "盖帽", "效率"];
       const body = [];
       ["home", "away"].forEach(team => {
         const count = Math.max(roster(team).length, ...Object.keys(stats[team]).map(Number));
@@ -1620,6 +1653,8 @@
             row.oreb + row.dreb,
             row.ast,
             row.to,
+            row.and1,
+            row.drawFoul,
             row.stl,
             row.blk,
             playerEfficiency(row)
