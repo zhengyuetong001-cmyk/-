@@ -611,7 +611,7 @@
 
     .log-item {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto 1fr auto auto;
       gap: 8px;
       padding: 7px 10px;
       border-bottom: 1px solid #edf1f5;
@@ -627,6 +627,15 @@
 
     .log-main {
       min-width: 0;
+    }
+
+    .delete-log-btn {
+      min-height: 28px;
+      padding: 0 8px;
+      color: #9e3126;
+      border-color: #e3b4ad;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     .tag {
@@ -1390,9 +1399,22 @@
           <div class="log-time">${event.period} ${event.clock}</div>
           <div class="log-main">${playerLabel(event.team, event.player)} ${eventLabels[event.type]}</div>
           <div class="tag">${event.at}</div>
+          <button class="delete-log-btn" data-delete-event="${event.id}" type="button">删除</button>
         `;
         els.log.appendChild(row);
       });
+      els.log.querySelectorAll(".delete-log-btn").forEach(btn => {
+        btn.addEventListener("click", () => deleteEvent(btn.dataset.deleteEvent));
+      });
+    }
+
+    function deleteEvent(id) {
+      const event = state.events.find(item => item.id === id);
+      if (!event) return;
+      const label = `${event.period} ${event.clock} ${playerLabel(event.team, event.player)} ${eventLabels[event.type]}`;
+      if (!confirm(`确定删除这条记录？\n${label}`)) return;
+      state.events = state.events.filter(item => item.id !== id);
+      render();
     }
 
     function renderSummary(stats) {
