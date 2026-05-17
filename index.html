@@ -222,7 +222,7 @@
     .side {
       position: relative;
       display: grid;
-      grid-template-rows: auto auto auto minmax(0, 1fr) minmax(130px, .8fr);
+      grid-template-rows: auto auto auto minmax(220px, 1fr) auto 128px;
       min-height: 0;
     }
 
@@ -248,11 +248,13 @@
       grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       align-content: start;
+      min-height: 220px;
     }
 
     .side .log {
       border-top: 1px solid var(--line);
       background: #fff;
+      max-height: 128px;
     }
 
     .side-log-heading {
