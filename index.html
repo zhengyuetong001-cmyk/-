@@ -1067,12 +1067,13 @@
         <div class="game-archive">
           <div class="archive-row">
             <input id="gameName" value="比赛1" aria-label="本场比赛名称">
-            <button id="saveLocalGameBtn" type="button">保存本场到本地</button>
+            <button id="saveLocalGameBtn" type="button">保存并新建</button>
           </div>
           <div class="archive-row">
             <select id="savedGames" aria-label="本地比赛存档"></select>
             <button id="loadLocalGameBtn" type="button">查看本地比赛</button>
           </div>
+          <button id="deleteLocalGameBtn" class="danger" type="button">删除所选存档</button>
         </div>
       </section>
 
@@ -1238,7 +1239,8 @@
       gameName: document.getElementById("gameName"),
       saveLocalGameBtn: document.getElementById("saveLocalGameBtn"),
       savedGames: document.getElementById("savedGames"),
-      loadLocalGameBtn: document.getElementById("loadLocalGameBtn")
+      loadLocalGameBtn: document.getElementById("loadLocalGameBtn"),
+      deleteLocalGameBtn: document.getElementById("deleteLocalGameBtn")
     };
 
     function teamName(team) {
@@ -1702,9 +1704,39 @@
       const archive = getArchive();
       const selected = els.savedGames.value;
       els.savedGames.innerHTML = archive.length
-        ? archive.map(game => `<option value="${game.id}">${game.name} · ${new Date(game.savedAt).toLocaleString("zh-CN", { hour12: false })}</option>`).join("")
+        ? archive.map(game => {
+            const savedDate = new Date(game.savedAt);
+            const dateLabel = savedDate.toLocaleDateString("zh-CN");
+            const timeLabel = savedDate.toLocaleTimeString("zh-CN", { hour12: false });
+            return `<option value="${game.id}">${dateLabel} · ${game.name} · ${timeLabel}</option>`;
+          }).join("")
         : `<option value="">暂无本地比赛</option>`;
       if (selected && archive.some(game => game.id === selected)) els.savedGames.value = selected;
+    }
+
+    function resetCurrentGame(nextName) {
+      state.events = [];
+      state.lastDeletedEvent = null;
+      state.currentView = "live";
+      state.sidePanel = "players";
+      state.rosterOpen = false;
+      state.activeTeam = "home";
+      state.selectedPlayer = 1;
+      state.shotMode = "2M";
+      els.teamHomeName.value = "主队";
+      els.teamAwayName.value = "客队";
+      state.teams = normalizeTeams({
+        home: { name: "主队", players: [...defaultPlayers] },
+        away: { name: "客队", players: [...defaultPlayers] }
+      });
+      els.period.value = "第1节";
+      els.clock.value = "10:00";
+      els.gameName.value = nextName;
+    }
+
+    function nextGameName(archive) {
+      const today = new Date().toLocaleDateString("zh-CN").replaceAll("/", "-");
+      return `${today} 比赛${archive.length + 1}`;
     }
 
     function render() {
@@ -1827,7 +1859,8 @@
       else archive.unshift(item);
       setArchive(archive);
       els.savedGames.value = item.id;
-      els.gameName.value = name;
+      resetCurrentGame(nextGameName(archive));
+      render();
     }
 
     function loadLocalGame() {
@@ -1835,6 +1868,18 @@
       const game = getArchive().find(item => item.id === id);
       if (!game) return;
       loadData(game.data);
+    }
+
+    function deleteLocalGame() {
+      const id = els.savedGames.value;
+      const archive = getArchive();
+      const game = archive.find(item => item.id === id);
+      if (!game) return;
+      if (!confirm(`确定删除这个本地存档？\n${game.name}`)) return;
+      const nextArchive = archive.filter(item => item.id !== id);
+      setArchive(nextArchive);
+      if (!nextArchive.length) els.gameName.value = nextGameName(nextArchive);
+      render();
     }
 
     function addSample() {
@@ -1934,6 +1979,7 @@
     });
     els.saveLocalGameBtn.addEventListener("click", saveLocalGame);
     els.loadLocalGameBtn.addEventListener("click", loadLocalGame);
+    els.deleteLocalGameBtn.addEventListener("click", deleteLocalGame);
     els.liveViewBtn.addEventListener("click", () => {
       state.currentView = "live";
       render();
