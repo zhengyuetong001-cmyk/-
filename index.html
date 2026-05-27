@@ -826,8 +826,7 @@
 
     .analysis-card {
       display: grid;
-      grid-template-columns: 110px 1fr auto;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -839,6 +838,18 @@
     .analysis-card strong {
       font-size: 16px;
       color: #172330;
+    }
+
+    .analysis-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .analysis-detail {
+      color: #425466;
+      line-height: 1.5;
     }
 
     .run-good {
@@ -1018,6 +1029,7 @@
     <nav class="view-tabs" aria-label="页面切换">
       <button id="liveViewBtn" class="view-tab active" type="button">临场记录</button>
       <button id="summaryViewBtn" class="view-tab" type="button">球员汇总</button>
+      <button id="analysisViewBtn" class="view-tab" type="button">走势分析</button>
     </nav>
 
     <main id="livePage" class="main">
@@ -1208,9 +1220,12 @@
         </div>
       </div>
 
+    </section>
+
+    <section id="analysisPage" class="summary-page hidden">
       <div class="panel">
         <div class="panel-header">
-          <h2 class="panel-title">时间段走势分析</h2>
+          <h2 class="panel-title">得分高潮 / 失分潮</h2>
           <span class="tag">按2分钟窗口</span>
         </div>
         <div id="runAnalysis" class="analysis-panel"></div>
@@ -1289,8 +1304,10 @@
       statsBody: document.getElementById("statsBody"),
       livePage: document.getElementById("livePage"),
       finalPage: document.getElementById("finalPage"),
+      analysisPage: document.getElementById("analysisPage"),
       liveViewBtn: document.getElementById("liveViewBtn"),
       summaryViewBtn: document.getElementById("summaryViewBtn"),
+      analysisViewBtn: document.getElementById("analysisViewBtn"),
       finalTop: document.getElementById("finalTop"),
       finalStatsBody: document.getElementById("finalStatsBody"),
       runAnalysis: document.getElementById("runAnalysis"),
@@ -1506,13 +1523,14 @@
       const windows = {};
       state.events.forEach(event => {
         const points = scoreValue(event.type);
-        if (!points) return;
         const remaining = parseClock(event.clock);
         const windowStart = Math.floor(remaining / windowSize) * windowSize;
         const key = `${event.period}|${windowStart}`;
         if (!windows[key]) {
-          windows[key] = { period: event.period, start: windowStart + windowSize, end: windowStart, home: 0, away: 0 };
+          windows[key] = { period: event.period, start: windowStart + windowSize, end: windowStart, home: 0, away: 0, events: [] };
         }
+        windows[key].events.push(event);
+        if (!points) return;
         windows[key][event.team] += points;
       });
       return Object.values(windows)
@@ -1525,26 +1543,84 @@
         .sort((a, b) => periodIndex(a.period) - periodIndex(b.period) || b.start - a.start);
     }
 
+    function statLineFromEvents(events, team) {
+      const line = { pts: 0, ast: 0, oreb: 0, dreb: 0, to: 0, stl: 0, blk: 0, and1: 0, drawFoul: 0, lostReb: 0, offBallLost: 0, players: {} };
+      events.filter(event => event.team === team).forEach(event => {
+        const points = scoreValue(event.type);
+        if (!line.players[event.player]) {
+          line.players[event.player] = { pts: 0, ast: 0, oreb: 0, dreb: 0, to: 0, stl: 0, blk: 0, and1: 0, drawFoul: 0, lostReb: 0, offBallLost: 0 };
+        }
+        const player = line.players[event.player];
+        line.pts += points;
+        player.pts += points;
+        ["AST", "OREB", "DREB", "TO", "STL", "BLK", "AND1", "DRAW_FOUL", "LOST_REB", "OFFBALL_LOST"].forEach(type => {
+          if (event.type !== type) return;
+          const key = {
+            AST: "ast", OREB: "oreb", DREB: "dreb", TO: "to", STL: "stl", BLK: "blk",
+            AND1: "and1", DRAW_FOUL: "drawFoul", LOST_REB: "lostReb", OFFBALL_LOST: "offBallLost"
+          }[type];
+          line[key] += 1;
+          player[key] += 1;
+        });
+      });
+      return line;
+    }
+
+    function topPlayerText(line, team) {
+      const ranked = Object.entries(line.players)
+        .map(([player, row]) => ({ player: Number(player), ...row, impact: row.pts + row.ast + row.oreb + row.stl + row.blk + row.and1 + row.drawFoul - row.to - row.lostReb - row.offBallLost }))
+        .filter(row => row.impact > 0 || row.pts > 0)
+        .sort((a, b) => b.impact - a.impact || b.pts - a.pts)
+        .slice(0, 3);
+      return ranked.length
+        ? ranked.map(row => `${playerLabel(team, row.player)} ${row.pts}分${row.ast ? ` ${row.ast}助` : ""}${row.oreb ? ` ${row.oreb}前板` : ""}${row.stl ? ` ${row.stl}断` : ""}`).join("；")
+        : "没有明显单点，更多来自团队分散贡献";
+    }
+
+    function teamFeatureText(line) {
+      const parts = [];
+      if (line.ast) parts.push(`${line.ast}次助攻`);
+      if (line.oreb) parts.push(`${line.oreb}个前场篮板`);
+      if (line.dreb) parts.push(`${line.dreb}个后场篮板`);
+      if (line.stl) parts.push(`${line.stl}次抢断`);
+      if (line.and1) parts.push(`${line.and1}次2+1`);
+      if (line.drawFoul) parts.push(`${line.drawFoul}次造罚球`);
+      if (line.to) parts.push(`${line.to}次失误`);
+      if (line.lostReb) parts.push(`${line.lostReb}次丢篮板`);
+      if (line.offBallLost) parts.push(`${line.offBallLost}次被无球移动`);
+      return parts.length ? parts.join("，") : "暂无明显附加事件";
+    }
+
     function renderRunAnalysis() {
       const windows = buildRunAnalysis();
       if (!windows.length) {
-        els.runAnalysis.innerHTML = `<div class="analysis-card"><strong>暂无</strong><span>录入得分事件后，这里会显示得分高潮和失分潮。</span><span>-</span></div>`;
+        els.runAnalysis.innerHTML = `<div class="analysis-card"><div class="analysis-head"><strong>暂无</strong><span>-</span></div><div class="analysis-detail">录入得分事件后，这里会从主队视角分析得分高潮和失分潮。</div></div>`;
         return;
       }
+      const scored = [...windows].sort((a, b) => b.homeDiff - a.homeDiff)[0];
+      const allowed = [...windows].sort((a, b) => a.homeDiff - b.homeDiff)[0];
       const rows = [];
-      ["home", "away"].forEach(team => {
-        const name = teamName(team);
-        const diffKey = team === "home" ? "homeDiff" : "awayDiff";
-        const scored = [...windows].sort((a, b) => b[diffKey] - a[diffKey])[0];
-        const allowed = [...windows].sort((a, b) => a[diffKey] - b[diffKey])[0];
-        if (scored && scored[diffKey] > 0) {
-          rows.push(`<div class="analysis-card"><strong>${name}</strong><span>${scored.label} 得分高潮</span><span class="run-good">+${scored[diffKey]}</span></div>`);
-        }
-        if (allowed && allowed[diffKey] < 0) {
-          rows.push(`<div class="analysis-card"><strong>${name}</strong><span>${allowed.label} 失分潮</span><span class="run-bad">${allowed[diffKey]}</span></div>`);
-        }
-      });
-      els.runAnalysis.innerHTML = rows.length ? rows.join("") : `<div class="analysis-card"><strong>暂无明显波动</strong><span>目前没有明显净胜或净负时间段。</span><span>0</span></div>`;
+      if (scored && scored.homeDiff > 0) {
+        const homeLine = statLineFromEvents(scored.events, "home");
+        rows.push(`
+          <div class="analysis-card">
+            <div class="analysis-head"><strong>${teamName("home")}得分高潮</strong><span class="run-good">+${scored.homeDiff}</span></div>
+            <div class="analysis-detail">${scored.label}，本方 ${homeLine.pts} 分，对手 ${scored.away} 分。突出球员：${topPlayerText(homeLine, "home")}。</div>
+            <div class="analysis-detail">整体突出数据：${teamFeatureText(homeLine)}。</div>
+          </div>
+        `);
+      }
+      if (allowed && allowed.homeDiff < 0) {
+        const awayLine = statLineFromEvents(allowed.events, "away");
+        rows.push(`
+          <div class="analysis-card">
+            <div class="analysis-head"><strong>${teamName("home")}失分潮</strong><span class="run-bad">${allowed.homeDiff}</span></div>
+            <div class="analysis-detail">${allowed.label}，对方 ${awayLine.pts} 分，本方 ${allowed.home} 分。对方突出球员：${topPlayerText(awayLine, "away")}。</div>
+            <div class="analysis-detail">对方整体突出数据：${teamFeatureText(awayLine)}。防守复盘重点看这些来源。</div>
+          </div>
+        `);
+      }
+      els.runAnalysis.innerHTML = rows.length ? rows.join("") : `<div class="analysis-card"><div class="analysis-head"><strong>暂无明显波动</strong><span>0</span></div><div class="analysis-detail">目前没有主队明显得分高潮或失分潮。</div></div>`;
     }
 
     function getPlayerRows(stats) {
@@ -1820,10 +1896,13 @@
 
     function renderView() {
       const isSummary = state.currentView === "summary";
-      els.livePage.classList.toggle("hidden", isSummary);
+      const isAnalysis = state.currentView === "analysis";
+      els.livePage.classList.toggle("hidden", isSummary || isAnalysis);
       els.finalPage.classList.toggle("hidden", !isSummary);
-      els.liveViewBtn.classList.toggle("active", !isSummary);
+      els.analysisPage.classList.toggle("hidden", !isAnalysis);
+      els.liveViewBtn.classList.toggle("active", !isSummary && !isAnalysis);
       els.summaryViewBtn.classList.toggle("active", isSummary);
+      els.analysisViewBtn.classList.toggle("active", isAnalysis);
     }
 
     function renderSidePanel() {
@@ -2168,6 +2247,10 @@
     });
     els.summaryViewBtn.addEventListener("click", () => {
       state.currentView = "summary";
+      render();
+    });
+    els.analysisViewBtn.addEventListener("click", () => {
+      state.currentView = "analysis";
       render();
     });
     els.teamHomeName.addEventListener("input", render);
