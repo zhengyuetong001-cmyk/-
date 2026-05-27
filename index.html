@@ -159,6 +159,20 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .clock-btn {
+      min-height: 36px;
+      padding: 0 10px;
+      color: #fff;
+      background: #2b6b57;
+      border-color: #3c806a;
+      font-weight: 800;
+    }
+
+    .clock-btn.paused {
+      background: #8d5f18;
+      border-color: #a07022;
+    }
+
     .view-tabs {
       display: flex;
       gap: 8px;
@@ -429,9 +443,9 @@
 
     .paint {
       position: absolute;
-      left: 25%;
-      width: 50%;
-      height: 28%;
+      left: 22%;
+      width: 56%;
+      height: 34%;
       border: 3px solid var(--court-line);
       pointer-events: none;
     }
@@ -465,15 +479,15 @@
 
     .shot-dot {
       position: absolute;
-      width: 14px;
-      height: 14px;
+      width: 11px;
+      height: 11px;
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      border: 1.5px solid #fff;
+      border: 1px solid #fff;
       display: grid;
       place-items: center;
       color: #fff;
-      font-size: 9px;
+      font-size: 7px;
       line-height: 1;
       font-weight: 900;
       box-shadow: 0 2px 8px rgba(0,0,0,.25);
@@ -804,6 +818,39 @@
       color: #172330;
     }
 
+    .analysis-panel {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .analysis-card {
+      display: grid;
+      grid-template-columns: 110px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfd;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .analysis-card strong {
+      font-size: 16px;
+      color: #172330;
+    }
+
+    .run-good {
+      color: #14845d;
+      font-weight: 900;
+    }
+
+    .run-bad {
+      color: #c23b3b;
+      font-weight: 900;
+    }
+
     .efficiency-cell {
       min-width: 160px;
     }
@@ -964,6 +1011,7 @@
           <option>加时</option>
         </select>
         <input id="clock" class="clock" value="10:00" aria-label="比赛时间">
+        <button id="clockToggleBtn" class="clock-btn paused" type="button">开始</button>
       </div>
     </header>
 
@@ -1052,6 +1100,8 @@
           <button class="event-btn primary" data-event="BLK" type="button">盖帽</button>
           <button class="event-btn primary" data-event="OREB" type="button">前场篮板</button>
           <button class="event-btn primary" data-event="DREB" type="button">后场篮板</button>
+          <button class="event-btn warn" data-event="LOST_REB" type="button">丢篮板</button>
+          <button class="event-btn warn" data-event="OFFBALL_LOST" type="button">被无球移动</button>
           <button class="event-btn" data-event="FTM" type="button">罚球进</button>
           <button class="event-btn" data-event="FTA" type="button">罚球失</button>
         </div>
@@ -1146,6 +1196,8 @@
                 <th>失误</th>
                 <th>2+1</th>
                 <th>造罚球</th>
+                <th>丢板</th>
+                <th>被无球</th>
                 <th>抢断</th>
                 <th>盖帽</th>
                 <th>效率值</th>
@@ -1154,6 +1206,14 @@
             <tbody id="finalStatsBody"></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">时间段走势分析</h2>
+          <span class="tag">按2分钟窗口</span>
+        </div>
+        <div id="runAnalysis" class="analysis-panel"></div>
       </div>
     </section>
   </div>
@@ -1170,6 +1230,8 @@
       FTA: "罚球未中",
       OREB: "前场篮板",
       DREB: "后场篮板",
+      LOST_REB: "丢篮板",
+      OFFBALL_LOST: "被无球移动",
       AST: "助攻",
       TO: "失误",
       STL: "抢断",
@@ -1188,6 +1250,8 @@
       sidePanel: "players",
       rosterOpen: false,
       lastDeletedEvent: null,
+      clockRunning: false,
+      clockTimer: null,
       events: [],
       teams: {
         home: { name: "主队", players: [...defaultPlayers] },
@@ -1202,6 +1266,7 @@
       awayScore: document.getElementById("awayScore"),
       period: document.getElementById("period"),
       clock: document.getElementById("clock"),
+      clockToggleBtn: document.getElementById("clockToggleBtn"),
       activeTeamLabel: document.getElementById("activeTeamLabel"),
       homeToggle: document.getElementById("homeToggle"),
       awayToggle: document.getElementById("awayToggle"),
@@ -1228,6 +1293,7 @@
       summaryViewBtn: document.getElementById("summaryViewBtn"),
       finalTop: document.getElementById("finalTop"),
       finalStatsBody: document.getElementById("finalStatsBody"),
+      runAnalysis: document.getElementById("runAnalysis"),
       exportFinalBtn: document.getElementById("exportFinalBtn"),
       undoBtn: document.getElementById("undoBtn"),
       exportBtn: document.getElementById("exportBtn"),
@@ -1270,6 +1336,41 @@
         .filter(Boolean);
     }
 
+    function parseClock(value) {
+      const match = String(value).trim().match(/^(\d{1,2}):([0-5]\d)$/);
+      if (!match) return 0;
+      return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function formatClock(seconds) {
+      const safe = Math.max(0, seconds);
+      const minutes = Math.floor(safe / 60);
+      const rest = safe % 60;
+      return `${minutes}:${String(rest).padStart(2, "0")}`;
+    }
+
+    function tickClock() {
+      const next = parseClock(els.clock.value) - 1;
+      els.clock.value = formatClock(next);
+      if (next <= 0) setClockRunning(false);
+      renderClockButton();
+    }
+
+    function setClockRunning(running) {
+      state.clockRunning = running;
+      if (state.clockTimer) {
+        clearInterval(state.clockTimer);
+        state.clockTimer = null;
+      }
+      if (running) state.clockTimer = setInterval(tickClock, 1000);
+      renderClockButton();
+    }
+
+    function renderClockButton() {
+      els.clockToggleBtn.textContent = state.clockRunning ? "暂停" : "开始";
+      els.clockToggleBtn.classList.toggle("paused", !state.clockRunning);
+    }
+
     function buildPlayers() {
       els.players.innerHTML = "";
       roster(state.activeTeam).forEach((name, index) => {
@@ -1307,7 +1408,7 @@
     function makeBlankStats() {
       return {
         pts: 0, twoM: 0, twoA: 0, threeM: 0, threeA: 0, ftM: 0, ftA: 0,
-        oreb: 0, dreb: 0, ast: 0, to: 0, and1: 0, drawFoul: 0, stl: 0, blk: 0
+        oreb: 0, dreb: 0, ast: 0, to: 0, and1: 0, drawFoul: 0, lostReb: 0, offBallLost: 0, stl: 0, blk: 0
       };
     }
 
@@ -1335,6 +1436,8 @@
         if (event.type === "FTA") row.ftA += 1;
         if (event.type === "OREB") row.oreb += 1;
         if (event.type === "DREB") row.dreb += 1;
+        if (event.type === "LOST_REB") row.lostReb += 1;
+        if (event.type === "OFFBALL_LOST") row.offBallLost += 1;
         if (event.type === "AST") row.ast += 1;
         if (event.type === "TO") row.to += 1;
         if (event.type === "STL") row.stl += 1;
@@ -1366,7 +1469,7 @@
 
     function playerEfficiency(row) {
       const misses = (row.twoA - row.twoM) + (row.threeA - row.threeM) + (row.ftA - row.ftM);
-      return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk + row.and1 + row.drawFoul - misses - row.to;
+      return row.pts + row.oreb + row.dreb + row.ast + row.stl + row.blk + row.and1 + row.drawFoul - misses - row.to - row.lostReb - row.offBallLost;
     }
 
     function efficiencyCell(value, maxValue) {
@@ -1379,6 +1482,69 @@
           </span>
         </div>
       `;
+    }
+
+    function scoreValue(type) {
+      if (type === "2M" || type === "AND1") return 2;
+      if (type === "3M") return 3;
+      if (type === "FTM") return 1;
+      return 0;
+    }
+
+    function periodIndex(period) {
+      const order = ["第1节", "第2节", "第3节", "第4节", "加时"];
+      const found = order.indexOf(period);
+      return found >= 0 ? found : order.length;
+    }
+
+    function runWindowLabel(period, startRemaining, endRemaining) {
+      return `${period} ${formatClock(startRemaining)}-${formatClock(endRemaining)}`;
+    }
+
+    function buildRunAnalysis() {
+      const windowSize = 120;
+      const windows = {};
+      state.events.forEach(event => {
+        const points = scoreValue(event.type);
+        if (!points) return;
+        const remaining = parseClock(event.clock);
+        const windowStart = Math.floor(remaining / windowSize) * windowSize;
+        const key = `${event.period}|${windowStart}`;
+        if (!windows[key]) {
+          windows[key] = { period: event.period, start: windowStart + windowSize, end: windowStart, home: 0, away: 0 };
+        }
+        windows[key][event.team] += points;
+      });
+      return Object.values(windows)
+        .map(item => ({
+          ...item,
+          label: runWindowLabel(item.period, item.start, item.end),
+          homeDiff: item.home - item.away,
+          awayDiff: item.away - item.home
+        }))
+        .sort((a, b) => periodIndex(a.period) - periodIndex(b.period) || b.start - a.start);
+    }
+
+    function renderRunAnalysis() {
+      const windows = buildRunAnalysis();
+      if (!windows.length) {
+        els.runAnalysis.innerHTML = `<div class="analysis-card"><strong>暂无</strong><span>录入得分事件后，这里会显示得分高潮和失分潮。</span><span>-</span></div>`;
+        return;
+      }
+      const rows = [];
+      ["home", "away"].forEach(team => {
+        const name = teamName(team);
+        const diffKey = team === "home" ? "homeDiff" : "awayDiff";
+        const scored = [...windows].sort((a, b) => b[diffKey] - a[diffKey])[0];
+        const allowed = [...windows].sort((a, b) => a[diffKey] - b[diffKey])[0];
+        if (scored && scored[diffKey] > 0) {
+          rows.push(`<div class="analysis-card"><strong>${name}</strong><span>${scored.label} 得分高潮</span><span class="run-good">+${scored[diffKey]}</span></div>`);
+        }
+        if (allowed && allowed[diffKey] < 0) {
+          rows.push(`<div class="analysis-card"><strong>${name}</strong><span>${allowed.label} 失分潮</span><span class="run-bad">${allowed[diffKey]}</span></div>`);
+        }
+      });
+      els.runAnalysis.innerHTML = rows.length ? rows.join("") : `<div class="analysis-card"><strong>暂无明显波动</strong><span>目前没有明显净胜或净负时间段。</span><span>0</span></div>`;
     }
 
     function getPlayerRows(stats) {
@@ -1548,6 +1714,8 @@
               <td>${row.to}</td>
               <td>${row.and1}</td>
               <td>${row.drawFoul}</td>
+              <td>${row.lostReb}</td>
+              <td>${row.offBallLost}</td>
               <td>${row.stl}</td>
               <td>${row.blk}</td>
             </tr>
@@ -1599,6 +1767,8 @@
             <td>${teamRow.to}</td>
             <td>${teamRow.and1}</td>
             <td>${teamRow.drawFoul}</td>
+            <td>${teamRow.lostReb}</td>
+            <td>${teamRow.offBallLost}</td>
             <td>${teamRow.stl}</td>
             <td>${teamRow.blk}</td>
             <td class="efficiency-cell">${efficiencyCell(playerEfficiency(teamRow), maxEfficiency)}</td>
@@ -1629,6 +1799,8 @@
               <td>${row.to}</td>
               <td>${row.and1}</td>
               <td>${row.drawFoul}</td>
+              <td>${row.lostReb}</td>
+              <td>${row.offBallLost}</td>
               <td>${row.stl}</td>
               <td>${row.blk}</td>
               <td class="efficiency-cell">${efficiencyCell(item.efficiency, maxEfficiency)}</td>
@@ -1637,6 +1809,7 @@
         });
       });
       els.finalStatsBody.innerHTML = rows.join("");
+      renderRunAnalysis();
     }
 
     function renderShotMode() {
@@ -1716,6 +1889,7 @@
 
     function resetCurrentGame(nextName) {
       state.events = [];
+      setClockRunning(false);
       state.lastDeletedEvent = null;
       state.currentView = "live";
       state.sidePanel = "players";
@@ -1754,6 +1928,7 @@
       renderFinalStats(stats);
       renderView();
       renderSidePanel();
+      renderClockButton();
       renderSavedGames();
       localStorage.setItem(liveStorageKey, JSON.stringify(getGameData()));
     }
@@ -1782,7 +1957,7 @@
 
     function exportFinalCsv() {
       const stats = calculateStats();
-      const header = ["球队", "球员编号", "球员姓名", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "2+1", "造罚球", "抢断", "盖帽", "效率"];
+      const header = ["球队", "球员编号", "球员姓名", "得分", "投篮", "2分", "3分", "罚球", "前板", "后板", "篮板", "助攻", "失误", "2+1", "造罚球", "丢篮板", "被无球移动", "抢断", "盖帽", "效率"];
       const body = [];
       ["home", "away"].forEach(team => {
         const count = Math.max(roster(team).length, ...Object.keys(stats[team]).map(Number));
@@ -1805,6 +1980,8 @@
             row.to,
             row.and1,
             row.drawFoul,
+            row.lostReb,
+            row.offBallLost,
             row.stl,
             row.blk,
             playerEfficiency(row)
@@ -1823,6 +2000,7 @@
     }
 
     function loadData(data) {
+      setClockRunning(false);
       state.teams = normalizeTeams(data.teams);
       state.events = Array.isArray(data.events) ? data.events : [];
       els.teamHomeName.value = state.teams.home?.name || "主队";
@@ -1944,6 +2122,7 @@
 
     els.clearBtn.addEventListener("click", () => {
       if (confirm("确定清空本场全部记录？")) {
+        setClockRunning(false);
         state.events = [];
         render();
       }
@@ -1980,6 +2159,9 @@
     els.saveLocalGameBtn.addEventListener("click", saveLocalGame);
     els.loadLocalGameBtn.addEventListener("click", loadLocalGame);
     els.deleteLocalGameBtn.addEventListener("click", deleteLocalGame);
+    els.clockToggleBtn.addEventListener("click", () => {
+      setClockRunning(!state.clockRunning);
+    });
     els.liveViewBtn.addEventListener("click", () => {
       state.currentView = "live";
       render();
@@ -1991,7 +2173,10 @@
     els.teamHomeName.addEventListener("input", render);
     els.teamAwayName.addEventListener("input", render);
     els.period.addEventListener("change", render);
-    els.clock.addEventListener("input", render);
+    els.clock.addEventListener("input", () => {
+      if (parseClock(els.clock.value) <= 0) setClockRunning(false);
+      render();
+    });
 
     els.loadFile.addEventListener("change", () => {
       const file = els.loadFile.files[0];
