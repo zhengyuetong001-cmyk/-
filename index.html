@@ -604,6 +604,14 @@
       color: #9e3126;
     }
 
+    .event-section-title {
+      grid-column: 1 / -1;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 900;
+      padding-top: 4px;
+    }
+
     .toolbar {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1116,6 +1124,15 @@
           <button class="event-btn warn" data-event="OFFBALL_LOST" type="button">被无球移动</button>
           <button class="event-btn" data-event="FTM" type="button">罚球进</button>
           <button class="event-btn" data-event="FTA" type="button">罚球失</button>
+          <div class="event-section-title">教练提醒</div>
+          <button class="event-btn warn" data-event="TO_PTS_ALLOWED" type="button">失误后失分</button>
+          <button class="event-btn warn" data-event="OREB_PTS_ALLOWED" type="button">前板后失分</button>
+          <button class="event-btn warn" data-event="BAD_TRANSITION" type="button">退防不足</button>
+          <button class="event-btn warn" data-event="PNR_SCORE_ALLOWED" type="button">挡拆失分</button>
+          <button class="event-btn warn" data-event="CORNER3_ALLOWED" type="button">底角3分</button>
+          <button class="event-btn warn" data-event="DRIVE_SCORE_ALLOWED" type="button">突破失分</button>
+          <button class="event-btn warn" data-event="SIDELINE_PRESS_TO" type="button">边线压迫失误</button>
+          <button class="event-btn warn" data-event="NO_SECOND_SIDE" type="button">无二次转移</button>
         </div>
         <div class="toolbar">
           <button id="undoBtn" type="button">撤销</button>
@@ -1247,6 +1264,14 @@
       DREB: "后场篮板",
       LOST_REB: "丢篮板",
       OFFBALL_LOST: "被无球移动",
+      TO_PTS_ALLOWED: "失误后失分",
+      OREB_PTS_ALLOWED: "前板后失分",
+      BAD_TRANSITION: "退防不足",
+      PNR_SCORE_ALLOWED: "挡拆失分",
+      CORNER3_ALLOWED: "底角3分",
+      DRIVE_SCORE_ALLOWED: "突破失分",
+      SIDELINE_PRESS_TO: "边线压迫失误",
+      NO_SECOND_SIDE: "无二次转移",
       AST: "助攻",
       TO: "失误",
       STL: "抢断",
@@ -1591,6 +1616,24 @@
       return parts.length ? parts.join("，") : "暂无明显附加事件";
     }
 
+    function tacticalReminderText(events) {
+      const reminderTypes = ["TO_PTS_ALLOWED", "OREB_PTS_ALLOWED", "BAD_TRANSITION", "PNR_SCORE_ALLOWED", "CORNER3_ALLOWED", "DRIVE_SCORE_ALLOWED", "SIDELINE_PRESS_TO", "NO_SECOND_SIDE"];
+      const counts = {};
+      events.forEach(event => {
+        if (!reminderTypes.includes(event.type)) return;
+        counts[event.type] = (counts[event.type] || 0) + 1;
+      });
+      const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      if (!ranked.length) return "本时间段没有额外教练提醒标签。";
+      return ranked.map(([type, count]) => `${eventLabels[type]} ${count}次`).join("，");
+    }
+
+    function timeoutTalkText(events) {
+      const reminders = tacticalReminderText(events);
+      if (reminders.startsWith("本时间段")) return "暂停沟通：目前主要依据得失分和球员贡献调整，暂无明确战术标签。";
+      return `暂停沟通：不要只说“状态不好”，建议直接说：${reminders}。`;
+    }
+
     function renderRunAnalysis() {
       const windows = buildRunAnalysis();
       if (!windows.length) {
@@ -1607,6 +1650,7 @@
             <div class="analysis-head"><strong>${teamName("home")}得分高潮</strong><span class="run-good">+${scored.homeDiff}</span></div>
             <div class="analysis-detail">${scored.label}，本方 ${homeLine.pts} 分，对手 ${scored.away} 分。突出球员：${topPlayerText(homeLine, "home")}。</div>
             <div class="analysis-detail">整体突出数据：${teamFeatureText(homeLine)}。</div>
+            <div class="analysis-detail">${timeoutTalkText(scored.events)}</div>
           </div>
         `);
       }
@@ -1617,6 +1661,7 @@
             <div class="analysis-head"><strong>${teamName("home")}失分潮</strong><span class="run-bad">${allowed.homeDiff}</span></div>
             <div class="analysis-detail">${allowed.label}，对方 ${awayLine.pts} 分，本方 ${allowed.home} 分。对方突出球员：${topPlayerText(awayLine, "away")}。</div>
             <div class="analysis-detail">对方整体突出数据：${teamFeatureText(awayLine)}。防守复盘重点看这些来源。</div>
+            <div class="analysis-detail">${timeoutTalkText(allowed.events)}</div>
           </div>
         `);
       }
